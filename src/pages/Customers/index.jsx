@@ -6,10 +6,32 @@ import CustomerModal from '../../components/modals/CustomerModal'
 const Customers = () => {
   const { customers, addCustomer, updateCustomer, deleteCustomer, searchCustomers } = useCustomers()
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState(null)
 
-  const filteredCustomers = searchCustomers(searchQuery)
+  // Filter and search customers
+  const getFilteredCustomers = () => {
+    let filtered = customers
+    
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(customer => 
+        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        customer.contact?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        customer.address?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+    
+    // Type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(customer => customer.type === filterType)
+    }
+    
+    return filtered
+  }
+
+  const filteredCustomers = getFilteredCustomers()
 
   const handleAddCustomer = (data) => {
     addCustomer(data)
@@ -36,6 +58,11 @@ const Customers = () => {
     setEditingCustomer(null)
   }
 
+  // Get customer count by type
+  const getCountByType = (type) => {
+    return customers.filter(c => c.type === type).length
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -55,6 +82,26 @@ const Customers = () => {
         </button>
       </div>
 
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{customers.length}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Regular</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{getCountByType('regular')}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">VIP</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{getCountByType('vip')}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Wholesale</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{getCountByType('wholesale')}</p>
+        </div>
+      </div>
+
       {/* Search and Filter */}
       <div className="card">
         <div className="flex flex-col sm:flex-row gap-4">
@@ -69,11 +116,15 @@ const Customers = () => {
             />
           </div>
           <div className="flex gap-2">
-            <select className="input-field sm:w-40">
-              <option value="all">All Types</option>
-              <option value="regular">Regular</option>
-              <option value="vip">VIP</option>
-              <option value="wholesale">Wholesale</option>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="input-field sm:w-40"
+            >
+              <option value="all">All Types ({customers.length})</option>
+              <option value="regular">Regular ({getCountByType('regular')})</option>
+              <option value="vip">VIP ({getCountByType('vip')})</option>
+              <option value="wholesale">Wholesale ({getCountByType('wholesale')})</option>
             </select>
           </div>
         </div>
@@ -85,15 +136,15 @@ const Customers = () => {
           <div className="empty-state">
             <Users className="empty-state-icon" />
             <p className="empty-state-text">
-              {searchQuery ? 'No customers found' : 'No customers yet'}
+              {searchQuery || filterType !== 'all' ? 'No customers found' : 'No customers yet'}
             </p>
             <p className="empty-state-subtext">
-              {searchQuery 
-                ? 'Try adjusting your search' 
+              {searchQuery || filterType !== 'all'
+                ? 'Try adjusting your search or filters'
                 : 'Start by adding your first customer'
               }
             </p>
-            {!searchQuery && (
+            {!searchQuery && filterType === 'all' && (
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="btn-primary mt-4 inline-flex items-center gap-2"
