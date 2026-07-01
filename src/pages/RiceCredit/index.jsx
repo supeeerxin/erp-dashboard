@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Package, Plus, Search, Edit2, Trash2, RotateCcw, DollarSign, Archive, TrendingUp } from 'lucide-react'
+import { Package, Plus, Search, Edit2, Trash2, RotateCcw, DollarSign, Archive, TrendingUp, Calendar } from 'lucide-react'
 import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useCustomers } from '../../context/CustomerContext'
 import RiceCreditModal from '../../components/modals/RiceCreditModal'
@@ -93,6 +93,11 @@ const RiceCredit = () => {
     setEditingTransaction(null)
   }
 
+  // Calculate total payments
+  const getTotalPayments = (transaction) => {
+    return transaction.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -100,7 +105,7 @@ const RiceCredit = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rice Credit</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage rice credit transactions and track balances
+            Manage rice credit transactions with installment payments
           </p>
         </div>
         <div className="flex gap-2">
@@ -188,11 +193,11 @@ const RiceCredit = () => {
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th className="table-header">Customer</th>
-                  <th className="table-header text-right">Sales</th>
-                  <th className="table-header text-right">Cost</th>
-                  <th className="table-header text-right">Profit</th>
+                  <th className="table-header text-right">Total</th>
+                  <th className="table-header text-right">Down</th>
                   <th className="table-header text-right">Paid</th>
-                  <th className="table-header text-right">Remaining</th>
+                  <th className="table-header text-right">Balance</th>
+                  <th className="table-header text-right">Gives</th>
                   <th className="table-header">Status</th>
                   <th className="table-header text-right">Actions</th>
                 </tr>
@@ -200,8 +205,9 @@ const RiceCredit = () => {
               <tbody>
                 {filteredTransactions.map((transaction) => {
                   const customer = getCustomer(transaction.customerId)
-                  const totalPaid = transaction.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-                  const profit = transaction.profit || 0
+                  const totalPaid = getTotalPayments(transaction)
+                  const downPayment = transaction.downPayment || 0
+                  const numberOfPayments = transaction.numberOfPayments || 1
                   
                   return (
                     <tr key={transaction.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -211,17 +217,25 @@ const RiceCredit = () => {
                       <td className="table-cell text-right">
                         ₱{transaction.amount.toLocaleString()}
                       </td>
-                      <td className="table-cell text-right text-gray-500">
-                        ₱{(transaction.cost || 0).toLocaleString()}
-                      </td>
-                      <td className={`table-cell text-right font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ₱{profit.toLocaleString()}
+                      <td className="table-cell text-right text-blue-600 dark:text-blue-400">
+                        ₱{downPayment.toLocaleString()}
                       </td>
                       <td className="table-cell text-right text-green-600 dark:text-green-400">
                         ₱{totalPaid.toLocaleString()}
                       </td>
                       <td className="table-cell text-right font-medium text-primary-500">
                         ₱{transaction.remainingBalance.toLocaleString()}
+                      </td>
+                      <td className="table-cell text-right text-sm">
+                        {numberOfPayments > 1 ? (
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {numberOfPayments} gives
+                            <br />
+                            <span className="text-xs">₱{transaction.paymentPerGive?.toFixed(2)}/give</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">1 give</span>
+                        )}
                       </td>
                       <td className="table-cell">
                         {getStatusBadge(transaction.status)}
