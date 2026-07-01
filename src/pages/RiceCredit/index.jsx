@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Package, Plus, Search, Edit2, Trash2, RotateCcw, Eye, DollarSign, Archive } from 'lucide-react'
+import { Package, Plus, Search, Edit2, Trash2, RotateCcw, DollarSign, Archive, TrendingUp } from 'lucide-react'
 import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useCustomers } from '../../context/CustomerContext'
 import RiceCreditModal from '../../components/modals/RiceCreditModal'
@@ -124,32 +124,30 @@ const RiceCredit = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="card p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
           <p className="text-lg font-bold text-gray-900 dark:text-white">
             ₱{totals.totalAmount.toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-          <p className="text-lg font-bold text-green-600 dark:text-green-400">
-            ₱{totals.totalPaid.toLocaleString()}
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total Cost</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">
+            ₱{totals.totalCost.toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total Profit</p>
+          <p className={`text-lg font-bold ${totals.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            ₱{totals.totalProfit.toLocaleString()}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Remaining Balance</p>
           <p className="text-lg font-bold text-primary-500">
             ₱{totals.totalRemaining.toLocaleString()}
           </p>
-        </div>
-        <div className="card p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
-          <p className="text-lg font-bold text-yellow-500">{totals.activeCount}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Overdue</p>
-          <p className="text-lg font-bold text-red-500">{totals.overdueCount}</p>
         </div>
       </div>
 
@@ -190,7 +188,9 @@ const RiceCredit = () => {
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th className="table-header">Customer</th>
-                  <th className="table-header text-right">Amount</th>
+                  <th className="table-header text-right">Sales</th>
+                  <th className="table-header text-right">Cost</th>
+                  <th className="table-header text-right">Profit</th>
                   <th className="table-header text-right">Paid</th>
                   <th className="table-header text-right">Remaining</th>
                   <th className="table-header">Status</th>
@@ -201,6 +201,7 @@ const RiceCredit = () => {
                 {filteredTransactions.map((transaction) => {
                   const customer = getCustomer(transaction.customerId)
                   const totalPaid = transaction.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+                  const profit = transaction.profit || 0
                   
                   return (
                     <tr key={transaction.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -209,6 +210,12 @@ const RiceCredit = () => {
                       </td>
                       <td className="table-cell text-right">
                         ₱{transaction.amount.toLocaleString()}
+                      </td>
+                      <td className="table-cell text-right text-gray-500">
+                        ₱{(transaction.cost || 0).toLocaleString()}
+                      </td>
+                      <td className={`table-cell text-right font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ₱{profit.toLocaleString()}
                       </td>
                       <td className="table-cell text-right text-green-600 dark:text-green-400">
                         ₱{totalPaid.toLocaleString()}
