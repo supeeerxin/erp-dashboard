@@ -8,6 +8,7 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
     customerId: '',
     customerName: '',
     amount: '',
+    cost: '',
     description: '',
     dueDate: ''
   })
@@ -18,6 +19,7 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
         customerId: transaction.customerId || '',
         customerName: transaction.customerName || '',
         amount: transaction.amount || '',
+        cost: transaction.cost || '',
         description: transaction.description || '',
         dueDate: transaction.dueDate || ''
       })
@@ -26,6 +28,7 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
         customerId: '',
         customerName: '',
         amount: '',
+        cost: '',
         description: '',
         dueDate: ''
       })
@@ -55,12 +58,18 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
     }
     onSave({
       ...formData,
-      amount: parseFloat(formData.amount)
+      amount: parseFloat(formData.amount),
+      cost: parseFloat(formData.cost) || 0
     })
     onClose()
   }
 
   if (!isOpen) return null
+
+  // Compute potential profit
+  const amount = parseFloat(formData.amount) || 0
+  const cost = parseFloat(formData.cost) || 0
+  const potentialProfit = amount - cost
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -97,7 +106,7 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
           </div>
 
           <div>
-            <label className="label">Amount (₱) *</label>
+            <label className="label">Selling Price (₱) *</label>
             <input
               type="number"
               name="amount"
@@ -109,6 +118,25 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
               step="0.01"
               required
             />
+          </div>
+
+          <div>
+            <label className="label">Puhunan / Cost (₱)</label>
+            <input
+              type="number"
+              name="cost"
+              value={formData.cost}
+              onChange={handleChange}
+              className="input-field"
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+            />
+            {formData.amount && formData.cost && (
+              <p className={`text-sm mt-1 ${potentialProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                Potential Profit: ₱{potentialProfit.toFixed(2)}
+              </p>
+            )}
           </div>
 
           <div>
