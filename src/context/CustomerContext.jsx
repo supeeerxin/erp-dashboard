@@ -37,6 +37,7 @@ export const CustomerProvider = ({ children }) => {
     const newCustomer = {
       id: Date.now(),
       ...customerData,
+      isDeleted: false, // Soft delete flag
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -48,43 +49,67 @@ export const CustomerProvider = ({ children }) => {
   // Update customer
   const updateCustomer = (id, customerData) => {
     setCustomers(prev => prev.map(customer => 
-      customer.id === id 
+      customer.id === id && !customer.isDeleted
         ? { ...customer, ...customerData, updatedAt: new Date().toISOString() }
         : customer
     ))
     showNotification('Customer updated successfully!', 'success')
   }
 
-  // Delete customer
+  // Soft delete customer
   const deleteCustomer = (id) => {
-    setCustomers(prev => prev.filter(customer => customer.id !== id))
-    showNotification('Customer deleted successfully!', 'success')
+    setCustomers(prev => prev.map(customer =>
+      customer.id === id
+        ? { ...customer, isDeleted: true, deletedAt: new Date().toISOString() }
+        : customer
+    ))
+    showNotification('Customer moved to trash!', 'warning')
   }
 
-  // Get customer by ID
+  // Restore customer from trash
+  const restoreCustomer = (id) => {
+    setCustomers(prev => prev.map(customer =>
+      customer.id === id
+        ? { ...customer, isDeleted: false, deletedAt: null }
+        : customer
+    ))
+    showNotification('Customer restored successfully!', 'success')
+  }
+
+  // Permanently delete customer (hard delete)
+  const permanentDeleteCustomer = (id) => {
+    setCustomers(prev => prev.filter(customer => customer.id !== id))
+    showNotification('Customer permanently deleted!', 'error')
+  }
+
+  // Get active customers (not deleted)
+  const getActiveCustomers = () => {
+    return customers.filter(customer => !customer.isDeleted)
+  }
+
+  // Get deleted customers (in trash)
+  const getDeletedCustomers = () => {
+    return customers.filter(customer => customer.isDeleted)
+  }
+
+  // Get customer by ID (including deleted)
   const getCustomer = (id) => {
     return customers.find(customer => customer.id === id)
   }
 
-  // Search customers
-  const searchCustomers = (query) => {
-    if (!query) return customers
-    const searchTerm = query.toLowerCase()
-    return customers.filter(customer => 
-      customer.name.toLowerCase().includes(searchTerm) ||
-      customer.contact?.toLowerCase().includes(searchTerm) ||
-      customer.address?.toLowerCase().includes(searchTerm)
-    )
-  }
-
   const value = {
-    customers,
+    customers: getActiveCustomers(), // Only return active customers
+    deletedCustomers: getDeletedCustomers(),
+    allCustomers: customers, // All including deleted
     loading,
     addCustomer,
     updateCustomer,
-    deleteCustomer,
+    deleteCustomer, // Soft delete
+    restoreCustomer,
+    permanentDeleteCustomer,
     getCustomer,
-    searchCustomers
+    getActiveCustomers,
+    getDeletedCustomers
   }
 
   return (
