@@ -35,9 +35,10 @@ export const RiceCreditProvider = ({ children }) => {
     const newTransaction = {
       id: Date.now(),
       ...data,
-      status: 'active', // active, completed, overdue
+      status: 'active',
       remainingBalance: data.amount,
       payments: [],
+      profit: data.amount - (data.cost || 0), // Compute profit
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -48,11 +49,19 @@ export const RiceCreditProvider = ({ children }) => {
 
   // Update transaction
   const updateTransaction = (id, data) => {
-    setTransactions(prev => prev.map(transaction =>
-      transaction.id === id
-        ? { ...transaction, ...data, updatedAt: new Date().toISOString() }
-        : transaction
-    ))
+    setTransactions(prev => prev.map(transaction => {
+      if (transaction.id === id) {
+        const updated = { 
+          ...transaction, 
+          ...data, 
+          updatedAt: new Date().toISOString() 
+        }
+        // Recompute profit
+        updated.profit = updated.amount - (updated.cost || 0)
+        return updated
+      }
+      return transaction
+    }))
     showNotification('Transaction updated!', 'success')
   }
 
@@ -120,6 +129,8 @@ export const RiceCreditProvider = ({ children }) => {
   const getTotals = () => {
     const active = getActiveTransactions()
     const totalAmount = active.reduce((sum, t) => sum + t.amount, 0)
+    const totalCost = active.reduce((sum, t) => sum + (t.cost || 0), 0)
+    const totalProfit = active.reduce((sum, t) => sum + (t.profit || 0), 0)
     const totalPaid = active.reduce((sum, t) => {
       const paid = t.payments.reduce((s, p) => s + p.amount, 0)
       return sum + paid
@@ -131,6 +142,8 @@ export const RiceCreditProvider = ({ children }) => {
 
     return {
       totalAmount,
+      totalCost,
+      totalProfit,
       totalPaid,
       totalRemaining,
       overdueCount,
