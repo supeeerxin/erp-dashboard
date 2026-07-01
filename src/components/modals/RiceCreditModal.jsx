@@ -1,0 +1,151 @@
+import React, { useState, useEffect } from 'react'
+import { X } from 'lucide-react'
+import { useCustomers } from '../../context/CustomerContext'
+
+const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
+  const { customers } = useCustomers()
+  const [formData, setFormData] = useState({
+    customerId: '',
+    customerName: '',
+    amount: '',
+    description: '',
+    dueDate: ''
+  })
+
+  useEffect(() => {
+    if (transaction) {
+      setFormData({
+        customerId: transaction.customerId || '',
+        customerName: transaction.customerName || '',
+        amount: transaction.amount || '',
+        description: transaction.description || '',
+        dueDate: transaction.dueDate || ''
+      })
+    } else {
+      setFormData({
+        customerId: '',
+        customerName: '',
+        amount: '',
+        description: '',
+        dueDate: ''
+      })
+    }
+  }, [transaction, isOpen])
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleCustomerSelect = (e) => {
+    const customerId = e.target.value
+    const customer = customers.find(c => c.id === parseInt(customerId))
+    setFormData(prev => ({
+      ...prev,
+      customerId: customerId,
+      customerName: customer ? customer.name : ''
+    }))
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!formData.customerId || !formData.amount) {
+      alert('Please select a customer and enter amount')
+      return
+    }
+    onSave({
+      ...formData,
+      amount: parseFloat(formData.amount)
+    })
+    onClose()
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            {transaction ? 'Edit Rice Credit' : 'New Rice Credit'}
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="label">Customer *</label>
+            <select
+              name="customerId"
+              value={formData.customerId}
+              onChange={handleCustomerSelect}
+              className="input-field"
+              required
+            >
+              <option value="">Select Customer</option>
+              {customers.map(customer => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Amount (₱) *</label>
+            <input
+              type="number"
+              name="amount"
+              value={formData.amount}
+              onChange={handleChange}
+              className="input-field"
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Due Date</label>
+            <input
+              type="date"
+              name="dueDate"
+              value={formData.dueDate}
+              onChange={handleChange}
+              className="input-field"
+            />
+          </div>
+
+          <div>
+            <label className="label">Description</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              className="input-field resize-none"
+              placeholder="Optional description"
+              rows="2"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" className="flex-1 btn-primary">
+              {transaction ? 'Update' : 'Create'} Transaction
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+export default RiceCreditModal
