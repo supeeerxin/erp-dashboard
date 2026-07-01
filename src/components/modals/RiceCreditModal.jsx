@@ -9,6 +9,8 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
     customerName: '',
     amount: '',
     cost: '',
+    downPayment: '',
+    numberOfPayments: '1',
     description: '',
     dueDate: ''
   })
@@ -20,6 +22,8 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
         customerName: transaction.customerName || '',
         amount: transaction.amount || '',
         cost: transaction.cost || '',
+        downPayment: transaction.downPayment || '',
+        numberOfPayments: transaction.numberOfPayments || '1',
         description: transaction.description || '',
         dueDate: transaction.dueDate || ''
       })
@@ -29,6 +33,8 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
         customerName: '',
         amount: '',
         cost: '',
+        downPayment: '',
+        numberOfPayments: '1',
         description: '',
         dueDate: ''
       })
@@ -59,16 +65,22 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
     onSave({
       ...formData,
       amount: parseFloat(formData.amount),
-      cost: parseFloat(formData.cost) || 0
+      cost: parseFloat(formData.cost) || 0,
+      downPayment: parseFloat(formData.downPayment) || 0,
+      numberOfPayments: parseInt(formData.numberOfPayments) || 1
     })
     onClose()
   }
 
   if (!isOpen) return null
 
-  // Compute potential profit
+  // Compute values
   const amount = parseFloat(formData.amount) || 0
   const cost = parseFloat(formData.cost) || 0
+  const downPayment = parseFloat(formData.downPayment) || 0
+  const numberOfPayments = parseInt(formData.numberOfPayments) || 1
+  const remainingAfterDown = amount - downPayment
+  const paymentPerGive = numberOfPayments > 1 ? remainingAfterDown / numberOfPayments : remainingAfterDown
   const potentialProfit = amount - cost
 
   return (
@@ -106,7 +118,7 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
           </div>
 
           <div>
-            <label className="label">Selling Price (₱) *</label>
+            <label className="label">Total Amount (₱) *</label>
             <input
               type="number"
               name="amount"
@@ -132,10 +144,55 @@ const RiceCreditModal = ({ isOpen, onClose, onSave, transaction }) => {
               min="0"
               step="0.01"
             />
-            {formData.amount && formData.cost && (
-              <p className={`text-sm mt-1 ${potentialProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                Potential Profit: ₱{potentialProfit.toFixed(2)}
-              </p>
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Payment Terms</h4>
+            
+            <div>
+              <label className="label">Down Payment (₱)</label>
+              <input
+                type="number"
+                name="downPayment"
+                value={formData.downPayment}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="label">Number of Gives/Payments</label>
+              <input
+                type="number"
+                name="numberOfPayments"
+                value={formData.numberOfPayments}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="1"
+                min="1"
+                step="1"
+              />
+            </div>
+
+            {amount > 0 && (
+              <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Remaining after down: <span className="font-medium text-gray-900 dark:text-white">₱{remainingAfterDown.toFixed(2)}</span>
+                </p>
+                {numberOfPayments > 1 && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Per Give: <span className="font-medium text-primary-500">₱{paymentPerGive.toFixed(2)}</span>
+                  </p>
+                )}
+                {cost > 0 && (
+                  <p className={`text-sm ${potentialProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    Potential Profit: ₱{potentialProfit.toFixed(2)}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
