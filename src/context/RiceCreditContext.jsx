@@ -32,13 +32,27 @@ export const RiceCreditProvider = ({ children }) => {
 
   // Add transaction
   const addTransaction = (data) => {
+    const totalAmount = data.amount
+    const downPayment = data.downPayment || 0
+    const numberOfPayments = data.numberOfPayments || 1
+    const remainingBalance = totalAmount - downPayment
+    const paymentPerGive = numberOfPayments > 1 ? remainingBalance / numberOfPayments : remainingBalance
+
     const newTransaction = {
       id: Date.now(),
       ...data,
-      status: 'active',
-      remainingBalance: data.amount,
-      payments: [],
-      profit: data.amount - (data.cost || 0), // Compute profit
+      downPayment: downPayment,
+      numberOfPayments: numberOfPayments,
+      paymentPerGive: paymentPerGive,
+      remainingBalance: remainingBalance,
+      status: remainingBalance <= 0 ? 'completed' : 'active',
+      payments: downPayment > 0 ? [{
+        id: Date.now(),
+        amount: downPayment,
+        date: new Date().toISOString(),
+        type: 'downpayment'
+      }] : [],
+      profit: data.amount - (data.cost || 0),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -56,7 +70,6 @@ export const RiceCreditProvider = ({ children }) => {
           ...data, 
           updatedAt: new Date().toISOString() 
         }
-        // Recompute profit
         updated.profit = updated.amount - (updated.cost || 0)
         return updated
       }
@@ -99,7 +112,8 @@ export const RiceCreditProvider = ({ children }) => {
         const payments = [...transaction.payments, {
           id: Date.now(),
           amount,
-          date: new Date().toISOString()
+          date: new Date().toISOString(),
+          type: 'payment'
         }]
         const status = newBalance <= 0 ? 'completed' : transaction.status
         return {
@@ -136,6 +150,7 @@ export const RiceCreditProvider = ({ children }) => {
       return sum + paid
     }, 0)
     const totalRemaining = active.reduce((sum, t) => sum + t.remainingBalance, 0)
+    const totalDownPayments = active.reduce((sum, t) => sum + (t.downPayment || 0), 0)
     const overdueCount = active.filter(t => t.status === 'overdue').length
     const completedCount = active.filter(t => t.status === 'completed').length
     const activeCount = active.filter(t => t.status === 'active').length
@@ -146,6 +161,7 @@ export const RiceCreditProvider = ({ children }) => {
       totalProfit,
       totalPaid,
       totalRemaining,
+      totalDownPayments,
       overdueCount,
       completedCount,
       activeCount,
