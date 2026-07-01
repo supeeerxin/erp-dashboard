@@ -1,54 +1,302 @@
-import React from 'react'
-import { Package, Plus, Search } from 'lucide-react'
+import React, { useState } from 'react'
+import { Package, Plus, Search, Edit2, Trash2, RotateCcw, Eye, DollarSign, Archive } from 'lucide-react'
+import { useRiceCredit } from '../../context/RiceCreditContext'
+import { useCustomers } from '../../context/CustomerContext'
+import RiceCreditModal from '../../components/modals/RiceCreditModal'
+import PaymentModal from '../../components/modals/PaymentModal'
 
 const RiceCredit = () => {
+  const { 
+    transactions, 
+    deletedTransactions,
+    addTransaction, 
+    updateTransaction, 
+    deleteTransaction,
+    restoreTransaction,
+    permanentDeleteTransaction,
+    addPayment,
+    getTotals 
+  } = useRiceCredit()
+  const { getCustomer } = useCustomers()
+  
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showTrash, setShowTrash] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState(null)
+  const [selectedTransaction, setSelectedTransaction] = useState(null)
+
+  const totals = getTotals()
+  const currentList = showTrash ? deletedTransactions : transactions
+
+  const filteredTransactions = currentList.filter(t => {
+    const customer = getCustomer(t.customerId)
+    const search = searchQuery.toLowerCase()
+    return customer?.name?.toLowerCase().includes(search) ||
+           t.customerName?.toLowerCase().includes(search) ||
+           t.description?.toLowerCase().includes(search)
+  })
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'completed':
+        return <span className="badge badge-success">Completed</span>
+      case 'overdue':
+        return <span className="badge badge-danger">Overdue</span>
+      default:
+        return <span className="badge badge-warning">Active</span>
+    }
+  }
+
+  const handleAddTransaction = (data) => {
+    addTransaction(data)
+  }
+
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction)
+    setIsModalOpen(true)
+  }
+
+  const handleUpdateTransaction = (data) => {
+    updateTransaction(editingTransaction.id, data)
+    setEditingTransaction(null)
+  }
+
+  const handleDeleteTransaction = (id) => {
+    if (window.confirm('Move this transaction to trash?')) {
+      deleteTransaction(id)
+    }
+  }
+
+  const handleRestoreTransaction = (id) => {
+    restoreTransaction(id)
+  }
+
+  const handlePermanentDelete = (id) => {
+    if (window.confirm('Permanently delete this transaction?')) {
+      permanentDeleteTransaction(id)
+    }
+  }
+
+  const handlePayment = (transaction) => {
+    setSelectedTransaction(transaction)
+    setIsPaymentModalOpen(true)
+  }
+
+  const handleRecordPayment = (amount) => {
+    addPayment(selectedTransaction.id, amount)
+    setSelectedTransaction(null)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setEditingTransaction(null)
+  }
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Rice Credit Management
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rice Credit</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Manage rice credit transactions and track balances
           </p>
         </div>
-        <button className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          New Rice Credit
-        </button>
-      </div>
-
-      <div className="card">
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search rice credit transactions..."
-              className="input-field pl-10"
-            />
-          </div>
-          <select className="input-field sm:w-48">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="completed">Completed</option>
-            <option value="overdue">Overdue</option>
-          </select>
-        </div>
-
-        <div className="empty-state">
-          <Package className="empty-state-icon" />
-          <p className="empty-state-text">No rice credit transactions yet</p>
-          <p className="empty-state-subtext">
-            Start by creating your first rice credit transaction
-          </p>
-          <button className="btn-primary mt-4 inline-flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Create Transaction
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowTrash(!showTrash)}
+            className={`btn-secondary flex items-center gap-2 ${showTrash ? 'bg-red-500 text-white hover:bg-red-600' : ''}`}
+          >
+            <Archive className="w-4 h-4" />
+            {showTrash ? 'Active' : `Trash (${deletedTransactions.length})`}
           </button>
+          {!showTrash && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              New Transaction
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">
+            ₱{totals.totalAmount.toLocaleString()}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
+          <p className="text-lg font-bold text-green-600 dark:text-green-400">
+            ₱{totals.totalPaid.toLocaleString()}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
+          <p className="text-lg font-bold text-primary-500">
+            ₱{totals.totalRemaining.toLocaleString()}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
+          <p className="text-lg font-bold text-yellow-500">{totals.activeCount}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Overdue</p>
+          <p className="text-lg font-bold text-red-500">{totals.overdueCount}</p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="card">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder={showTrash ? "Search trash..." : "Search transactions..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input-field pl-10"
+          />
+        </div>
+      </div>
+
+      {/* Transaction List */}
+      {filteredTransactions.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <Package className="empty-state-icon" />
+            <p className="empty-state-text">
+              {searchQuery ? 'No transactions found' : showTrash ? 'Trash is empty' : 'No transactions yet'}
+            </p>
+            <p className="empty-state-subtext">
+              {searchQuery 
+                ? 'Try adjusting your search' 
+                : showTrash ? 'Deleted transactions will appear here' : 'Start by creating your first transaction'
+              }
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="table-header">Customer</th>
+                  <th className="table-header text-right">Amount</th>
+                  <th className="table-header text-right">Paid</th>
+                  <th className="table-header text-right">Remaining</th>
+                  <th className="table-header">Status</th>
+                  <th className="table-header text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTransactions.map((transaction) => {
+                  const customer = getCustomer(transaction.customerId)
+                  const totalPaid = transaction.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+                  
+                  return (
+                    <tr key={transaction.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                      <td className="table-cell font-medium">
+                        {customer?.name || transaction.customerName || 'Unknown'}
+                      </td>
+                      <td className="table-cell text-right">
+                        ₱{transaction.amount.toLocaleString()}
+                      </td>
+                      <td className="table-cell text-right text-green-600 dark:text-green-400">
+                        ₱{totalPaid.toLocaleString()}
+                      </td>
+                      <td className="table-cell text-right font-medium text-primary-500">
+                        ₱{transaction.remainingBalance.toLocaleString()}
+                      </td>
+                      <td className="table-cell">
+                        {getStatusBadge(transaction.status)}
+                        {transaction.isDeleted && (
+                          <span className="badge badge-danger ml-1">Deleted</span>
+                        )}
+                      </td>
+                      <td className="table-cell text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {!transaction.isDeleted && transaction.status !== 'completed' && (
+                            <button
+                              onClick={() => handlePayment(transaction)}
+                              className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
+                              title="Record Payment"
+                            >
+                              <DollarSign className="w-4 h-4 text-green-500" />
+                            </button>
+                          )}
+                          {transaction.isDeleted ? (
+                            <>
+                              <button
+                                onClick={() => handleRestoreTransaction(transaction.id)}
+                                className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
+                                title="Restore"
+                              >
+                                <RotateCcw className="w-4 h-4 text-green-500" />
+                              </button>
+                              <button
+                                onClick={() => handlePermanentDelete(transaction.id)}
+                                className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                                title="Permanently Delete"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleEditTransaction(transaction)}
+                                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                              >
+                                <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransaction(transaction.id)}
+                                className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      <RiceCreditModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={editingTransaction ? handleUpdateTransaction : handleAddTransaction}
+        transaction={editingTransaction}
+      />
+
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => {
+          setIsPaymentModalOpen(false)
+          setSelectedTransaction(null)
+        }}
+        onSave={handleRecordPayment}
+        customerName={selectedTransaction ? 
+          getCustomer(selectedTransaction.customerId)?.name || selectedTransaction.customerName : ''
+        }
+        remainingBalance={selectedTransaction?.remainingBalance || 0}
+      />
     </div>
   )
 }
