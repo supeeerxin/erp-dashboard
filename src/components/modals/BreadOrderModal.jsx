@@ -103,16 +103,21 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
       return
     }
 
+    const boxes = parseInt(formData.boxes) || 0
+    const pieces = parseInt(formData.pieces) || 0
+    const totalAmount = (boxes * (selectedProduct.sellingPricePerBox || 0)) + (pieces * (selectedProduct.sellingPricePerPiece || 0))
+
     onSave({
       ...formData,
-      boxes: parseInt(formData.boxes) || 0,
-      pieces: parseInt(formData.pieces) || 0,
+      boxes: boxes,
+      pieces: pieces,
       productName: selectedProduct.name,
       sellingPricePerBox: selectedProduct.sellingPricePerBox || 0,
       sellingPricePerPiece: selectedProduct.sellingPricePerPiece || 0,
       costPerBox: selectedProduct.costPerBox || 0,
       costPerPiece: selectedProduct.costPerPiece || 0,
-      productId: parseInt(formData.productId)
+      productId: parseInt(formData.productId),
+      totalAmount: totalAmount
     })
     onClose()
   }
@@ -228,15 +233,29 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
             </div>
           </div>
 
+          {/* Total Amount Payable - prominently displayed */}
           {selectedProduct && (boxes > 0 || pieces > 0) && (
-            <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-1">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Total Selling: <span className="font-medium text-primary-500">₱{totalSelling.toFixed(2)}</span>
+            <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount Payable</p>
+              <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                ₱{totalSelling.toFixed(2)}
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Total Cost: <span className="font-medium text-gray-900 dark:text-white">₱{totalCost.toFixed(2)}</span>
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                <p>{boxes} boxes × ₱{sellingPricePerBox.toFixed(2)} = ₱{(boxes * sellingPricePerBox).toFixed(2)}</p>
+                {pieces > 0 && (
+                  <p>{pieces} pieces × ₱{sellingPricePerPiece.toFixed(2)} = ₱{(pieces * sellingPricePerPiece).toFixed(2)}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Profit/Cost breakdown - optional */}
+          {selectedProduct && (boxes > 0 || pieces > 0) && (
+            <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
+              <p className="text-gray-600 dark:text-gray-400">
+                Cost: <span className="font-medium text-gray-900 dark:text-white">₱{totalCost.toFixed(2)}</span>
               </p>
-              <p className={`text-sm font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 Profit: ₱{profit.toFixed(2)}
               </p>
             </div>
