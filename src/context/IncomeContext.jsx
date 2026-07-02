@@ -79,4 +79,67 @@ export const IncomeProvider = ({ children }) => {
         : income
     ))
     showNotification('Income restored!', 'success')
-    addLog('Restored', 'Income', `Restored income: ${
+    addLog('Restored', 'Income', `Restored income: ${income?.transactionNumber || 'Unknown'}`)
+  }
+
+  const permanentDeleteIncome = (id) => {
+    const income = incomes.find(i => i.id === id)
+    setIncomes(prev => prev.filter(income => income.id !== id))
+    showNotification('Income permanently deleted', 'error')
+    addLog('Deleted', 'Income', `Permanently deleted income: ${income?.transactionNumber || 'Unknown'}`)
+  }
+
+  const getActiveIncomes = () => {
+    return incomes.filter(i => !i.isDeleted)
+  }
+
+  const getDeletedIncomes = () => {
+    return incomes.filter(i => i.isDeleted)
+  }
+
+  const getTotals = () => {
+    const active = getActiveIncomes()
+    const totalAmount = active.reduce((sum, i) => sum + (i.amount || 0), 0)
+    const count = active.length
+
+    const byCategory = active.reduce((acc, i) => {
+      const category = i.category || 'Other'
+      acc[category] = (acc[category] || 0) + (i.amount || 0)
+      return acc
+    }, {})
+
+    const byMonth = active.reduce((acc, i) => {
+      const month = new Date(i.date || i.createdAt).toLocaleString('default', { month: 'short', year: 'numeric' })
+      acc[month] = (acc[month] || 0) + (i.amount || 0)
+      return acc
+    }, {})
+
+    return {
+      totalAmount,
+      count,
+      byCategory,
+      byMonth
+    }
+  }
+
+  const value = {
+    incomes: getActiveIncomes(),
+    deletedIncomes: getDeletedIncomes(),
+    allIncomes: incomes,
+    loading,
+    addIncome,
+    updateIncome,
+    deleteIncome,
+    restoreIncome,
+    permanentDeleteIncome,
+    getTotals,
+    getActiveIncomes,
+    getDeletedIncomes
+  }
+
+  return (
+    <IncomeContext.Provider value={value}>
+      {children}
+    </IncomeContext.Provider>
+  )
+}
