@@ -1,32 +1,29 @@
 import React, { useState, useMemo } from 'react'
-import { Calendar, Clock, Users, Package, DollarSign, CreditCard, ShoppingBag, Bell, AlertCircle, CheckCircle, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Calendar, Clock, Users, Package, DollarSign, CreditCard, ShoppingBag, Bell, AlertCircle, CheckCircle, Filter, Search, ChevronLeft, ChevronRight, List } from 'lucide-react'
 import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useCashLoans } from '../../context/CashLoanContext'
 import { usePayables } from '../../context/PayableContext'
 import { useBreadOrders } from '../../context/BreadOrderContext'
 import { useCustomers } from '../../context/CustomerContext'
-import { format, parseISO, isToday, isTomorrow, isAfter, isBefore, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns'
+import { format, parseISO, isToday, isTomorrow, isAfter, isBefore, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 
 const DueDates = () => {
   const navigate = useNavigate()
-  const [view, setView] = useState('list') // list or calendar
+  const [view, setView] = useState('list')
   const [filterType, setFilterType] = useState('all')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
 
-  // Get data from contexts
   const { transactions: riceCredits } = useRiceCredit()
   const { loans: cashLoans } = useCashLoans()
   const { payables } = usePayables()
   const { orders: breadOrders } = useBreadOrders()
   const { getCustomer } = useCustomers()
 
-  // Get all due items
   const dueItems = useMemo(() => {
     const items = []
 
-    // Rice Credit due dates
     riceCredits?.forEach(t => {
       if (!t.isDeleted && t.status !== 'completed' && t.dueDate) {
         const dueDate = parseISO(t.dueDate)
@@ -39,7 +36,6 @@ const DueDates = () => {
           amount: t.remainingBalance || 0,
           dueDate: dueDate,
           status: t.status || 'active',
-          original: t,
           icon: Package,
           color: 'text-blue-500',
           bgColor: 'bg-blue-50 dark:bg-blue-900/20',
@@ -49,7 +45,6 @@ const DueDates = () => {
       }
     })
 
-    // Cash Loan due dates
     cashLoans?.forEach(l => {
       if (!l.isDeleted && l.status !== 'completed' && l.dueDate) {
         const dueDate = parseISO(l.dueDate)
@@ -62,7 +57,6 @@ const DueDates = () => {
           amount: l.remainingBalance || 0,
           dueDate: dueDate,
           status: l.status || 'active',
-          original: l,
           icon: DollarSign,
           color: 'text-green-500',
           bgColor: 'bg-green-50 dark:bg-green-900/20',
@@ -72,7 +66,6 @@ const DueDates = () => {
       }
     })
 
-    // Payables due dates
     payables?.forEach(p => {
       if (!p.isDeleted && p.status !== 'paid' && p.dueDate) {
         const dueDate = parseISO(p.dueDate)
@@ -84,7 +77,6 @@ const DueDates = () => {
           amount: p.amount || 0,
           dueDate: dueDate,
           status: p.status || 'unpaid',
-          original: p,
           icon: CreditCard,
           color: 'text-red-500',
           bgColor: 'bg-red-50 dark:bg-red-900/20',
@@ -94,7 +86,6 @@ const DueDates = () => {
       }
     })
 
-    // Bread Order delivery dates
     breadOrders?.forEach(o => {
       if (!o.isDeleted && o.status !== 'completed' && o.deliveryDate) {
         const dueDate = parseISO(o.deliveryDate)
@@ -107,7 +98,6 @@ const DueDates = () => {
           amount: o.totalSellingPrice || 0,
           dueDate: dueDate,
           status: o.status || 'pending',
-          original: o,
           icon: ShoppingBag,
           color: 'text-yellow-500',
           bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
@@ -117,27 +107,21 @@ const DueDates = () => {
       }
     })
 
-    // Sort by due date
     items.sort((a, b) => a.dueDate - b.dueDate)
     return items
   }, [riceCredits, cashLoans, payables, breadOrders, getCustomer])
 
-  // Filter items
   const filteredItems = useMemo(() => {
     let items = dueItems
-
     if (filterType !== 'all') {
       items = items.filter(item => item.type === filterType)
     }
-
     if (selectedDate) {
       items = items.filter(item => isSameDay(item.dueDate, selectedDate))
     }
-
     return items
   }, [dueItems, filterType, selectedDate])
 
-  // Get upcoming items (next 7 days)
   const upcomingItems = useMemo(() => {
     const today = new Date()
     const nextWeek = addDays(today, 7)
@@ -146,7 +130,6 @@ const DueDates = () => {
     )
   }, [dueItems])
 
-  // Get overdue items
   const overdueItems = useMemo(() => {
     const today = new Date()
     return dueItems.filter(item => 
@@ -154,13 +137,11 @@ const DueDates = () => {
     )
   }, [dueItems])
 
-  // Get today's items
   const todayItems = useMemo(() => {
     const today = new Date()
     return dueItems.filter(item => isToday(item.dueDate))
   }, [dueItems])
 
-  // Calendar days
   const calendarDays = useMemo(() => {
     const start = startOfMonth(currentDate)
     const end = endOfMonth(currentDate)
@@ -228,7 +209,6 @@ const DueDates = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -255,7 +235,6 @@ const DueDates = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="card p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
           <div className="flex items-center gap-2">
@@ -287,68 +266,53 @@ const DueDates = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="card">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 flex gap-2">
-            <button
-              onClick={() => setFilterType('all')}
-              className={`btn-secondary text-sm px-3 py-1 ${filterType === 'all' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilterType('rice-credit')}
-              className={`btn-secondary text-sm px-3 py-1 ${filterType === 'rice-credit' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
-            >
-              <Package className="w-3 h-3 inline mr-1" /> Rice Credit
-            </button>
-            <button
-              onClick={() => setFilterType('cash-loan')}
-              className={`btn-secondary text-sm px-3 py-1 ${filterType === 'cash-loan' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
-            >
-              <DollarSign className="w-3 h-3 inline mr-1" /> Cash Loans
-            </button>
-            <button
-              onClick={() => setFilterType('payable')}
-              className={`btn-secondary text-sm px-3 py-1 ${filterType === 'payable' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
-            >
-              <CreditCard className="w-3 h-3 inline mr-1" /> Bills
-            </button>
-            <button
-              onClick={() => setFilterType('bread-order')}
-              className={`btn-secondary text-sm px-3 py-1 ${filterType === 'bread-order' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
-            >
-              <ShoppingBag className="w-3 h-3 inline mr-1" /> Orders
-            </button>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setFilterType('all')}
+            className={`btn-secondary text-sm px-3 py-1 ${filterType === 'all' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setFilterType('rice-credit')}
+            className={`btn-secondary text-sm px-3 py-1 ${filterType === 'rice-credit' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
+          >
+            <Package className="w-3 h-3 inline mr-1" /> Rice Credit
+          </button>
+          <button
+            onClick={() => setFilterType('cash-loan')}
+            className={`btn-secondary text-sm px-3 py-1 ${filterType === 'cash-loan' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
+          >
+            <DollarSign className="w-3 h-3 inline mr-1" /> Cash Loans
+          </button>
+          <button
+            onClick={() => setFilterType('payable')}
+            className={`btn-secondary text-sm px-3 py-1 ${filterType === 'payable' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
+          >
+            <CreditCard className="w-3 h-3 inline mr-1" /> Bills
+          </button>
+          <button
+            onClick={() => setFilterType('bread-order')}
+            className={`btn-secondary text-sm px-3 py-1 ${filterType === 'bread-order' ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
+          >
+            <ShoppingBag className="w-3 h-3 inline mr-1" /> Orders
+          </button>
         </div>
       </div>
 
-      {/* List View */}
       {view === 'list' && (
         <div className="card">
           {filteredItems.length === 0 ? (
             <div className="empty-state">
               <Calendar className="empty-state-icon" />
               <p className="empty-state-text">No due items found</p>
-              <p className="empty-state-subtext">
-                {selectedDate ? 'No items due on this date' : 'All caught up! No pending due dates.'}
-              </p>
-              {selectedDate && (
-                <button
-                  onClick={() => setSelectedDate(null)}
-                  className="btn-primary mt-4"
-                >
-                  Clear Filter
-                </button>
-              )}
+              <p className="empty-state-subtext">All caught up! No pending due dates.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {filteredItems.map((item) => {
                 const Icon = item.icon
-                const dueStatus = getDueStatus(item.dueDate)
                 const daysUntil = getDaysUntil(item.dueDate)
                 
                 return (
@@ -367,14 +331,12 @@ const DueDates = () => {
                             <h4 className="font-semibold text-gray-900 dark:text-white">{item.title}</h4>
                             <span className="text-xs text-gray-500 dark:text-gray-400">{item.type}</span>
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {item.customer}
-                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{item.customer}</p>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-sm font-medium text-gray-900 dark:text-white">
                               ₱{item.amount.toLocaleString()}
                             </span>
-                            <span className={`text-xs font-medium ${dueStatus === 'overdue' ? 'text-red-500' : dueStatus === 'today' ? 'text-blue-500' : 'text-yellow-500'}`}>
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                               {daysUntil}
                             </span>
                             {getStatusBadge(item.status)}
@@ -396,10 +358,8 @@ const DueDates = () => {
         </div>
       )}
 
-      {/* Calendar View */}
       {view === 'calendar' && (
         <div className="card">
-          {/* Calendar Header */}
           <div className="flex items-center justify-between mb-4">
             <button onClick={handlePrevMonth} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
               <ChevronLeft className="w-5 h-5" />
@@ -412,7 +372,6 @@ const DueDates = () => {
             </button>
           </div>
 
-          {/* Calendar Grid */}
           <div className="grid grid-cols-7 gap-1">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
               <div key={day} className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 py-2">
@@ -420,12 +379,10 @@ const DueDates = () => {
               </div>
             ))}
             
-            {/* Empty days before start of month */}
             {Array.from({ length: calendarDays[0]?.getDay() || 0 }).map((_, i) => (
               <div key={`empty-${i}`} className="h-24 rounded-lg bg-gray-50 dark:bg-gray-800/30" />
             ))}
             
-            {/* Calendar Days */}
             {calendarDays.map((date) => {
               const dayItems = getDayItems(date)
               const dayColor = getDayColor(date)
@@ -473,7 +430,6 @@ const DueDates = () => {
             })}
           </div>
 
-          {/* Selected Date Details */}
           {selectedDate && (
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
