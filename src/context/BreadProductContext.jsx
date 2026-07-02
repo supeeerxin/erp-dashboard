@@ -16,7 +16,6 @@ export const BreadProductProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
 
-  // Default products with inventory
   const defaultProducts = [
     { 
       id: 1, 
@@ -123,19 +122,17 @@ export const BreadProductProvider = ({ children }) => {
     return products.find(product => product.id === id)
   }
 
-  // Deduct inventory when order is placed
   const deductInventory = (productId, boxes, pieces) => {
     setProducts(prev => prev.map(product => {
       if (product.id === productId) {
         const newStockBoxes = Math.max(0, (product.stockBoxes || 0) - (boxes || 0))
         const newStockPieces = Math.max(0, (product.stockPieces || 0) - (pieces || 0))
         
-        // Check low stock
         if (newStockBoxes <= 5 && newStockBoxes > 0) {
           showNotification(`Low stock: ${product.name} - only ${newStockBoxes} boxes left!`, 'warning')
         }
-        if (newStockPieces <= 10 && newStockPieces > 0) {
-          showNotification(`Low stock: ${product.name} - only ${newStockPieces} pieces left!`, 'warning')
+        if (newStockBoxes === 0 && (boxes || 0) > 0) {
+          showNotification(`${product.name} is now out of stock!`, 'error')
         }
         
         return {
@@ -148,7 +145,6 @@ export const BreadProductProvider = ({ children }) => {
     }))
   }
 
-  // Restore inventory when order is cancelled/deleted
   const restoreInventory = (productId, boxes, pieces) => {
     setProducts(prev => prev.map(product => {
       if (product.id === productId) {
