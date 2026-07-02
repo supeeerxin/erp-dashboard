@@ -15,6 +15,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, customerName, remainingBalance 
       return
     }
     onSave(parseFloat(amount))
+    setAmount('')
     onClose()
   }
 
@@ -28,7 +29,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, customerName, remainingBalance 
             Record Payment
           </h3>
           <button
-            onClick={onClose}
+            onClick={() => {
+              setAmount('')
+              onClose()
+            }}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -54,13 +58,27 @@ const PaymentModal = ({ isOpen, onClose, onSave, customerName, remainingBalance 
               className="input-field"
               placeholder="0.00"
               min="0"
+              max={remainingBalance}
               step="0.01"
               required
+              autoFocus
             />
+            {remainingBalance > 0 && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Max: ₱{remainingBalance.toLocaleString()}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button type="button" onClick={onClose} className="flex-1 btn-secondary">
+            <button 
+              type="button" 
+              onClick={() => {
+                setAmount('')
+                onClose()
+              }} 
+              className="flex-1 btn-secondary"
+            >
               Cancel
             </button>
             <button type="submit" className="flex-1 btn-primary">
