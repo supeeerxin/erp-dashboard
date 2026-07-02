@@ -32,14 +32,18 @@ export const BreadOrderProvider = ({ children }) => {
   }, [orders, loading])
 
   const addOrder = (data) => {
-    // Calculate total: boxes * pricePerBox + pieces * pricePerPiece
-    const totalAmount = (data.boxes || 0) * (data.pricePerBox || 0) + (data.pieces || 0) * (data.pricePerPiece || 0)
+    // Calculate totals
+    const totalSellingPrice = (data.boxes || 0) * (data.sellingPricePerBox || 0) + (data.pieces || 0) * (data.sellingPricePerPiece || 0)
+    const totalCost = (data.boxes || 0) * (data.costPerBox || 0) + (data.pieces || 0) * (data.costPerPiece || 0)
+    const profit = totalSellingPrice - totalCost
 
     const newOrder = {
       id: Date.now(),
       transactionNumber: generateOrderNumber(),
       ...data,
-      totalAmount: totalAmount,
+      totalSellingPrice: totalSellingPrice,
+      totalCost: totalCost,
+      profit: profit,
       status: data.status || 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -54,12 +58,17 @@ export const BreadOrderProvider = ({ children }) => {
     setOrders(prev => prev.map(order => {
       if (order.id === id) {
         const updated = { ...order, ...data, updatedAt: new Date().toISOString() }
-        // Recalculate total
+        // Recalculate totals
         const boxes = data.boxes !== undefined ? data.boxes : order.boxes
         const pieces = data.pieces !== undefined ? data.pieces : order.pieces
-        const pricePerBox = data.pricePerBox !== undefined ? data.pricePerBox : order.pricePerBox
-        const pricePerPiece = data.pricePerPiece !== undefined ? data.pricePerPiece : order.pricePerPiece
-        updated.totalAmount = (boxes || 0) * (pricePerBox || 0) + (pieces || 0) * (pricePerPiece || 0)
+        const sellingPricePerBox = data.sellingPricePerBox !== undefined ? data.sellingPricePerBox : order.sellingPricePerBox
+        const sellingPricePerPiece = data.sellingPricePerPiece !== undefined ? data.sellingPricePerPiece : order.sellingPricePerPiece
+        const costPerBox = data.costPerBox !== undefined ? data.costPerBox : order.costPerBox
+        const costPerPiece = data.costPerPiece !== undefined ? data.costPerPiece : order.costPerPiece
+        
+        updated.totalSellingPrice = (boxes || 0) * (sellingPricePerBox || 0) + (pieces || 0) * (sellingPricePerPiece || 0)
+        updated.totalCost = (boxes || 0) * (costPerBox || 0) + (pieces || 0) * (costPerPiece || 0)
+        updated.profit = updated.totalSellingPrice - updated.totalCost
         return updated
       }
       return order
@@ -110,7 +119,9 @@ export const BreadOrderProvider = ({ children }) => {
   const getTotals = () => {
     const active = getActiveOrders()
     const totalOrders = active.length
-    const totalAmount = active.reduce((sum, o) => sum + o.totalAmount, 0)
+    const totalSelling = active.reduce((sum, o) => sum + (o.totalSellingPrice || 0), 0)
+    const totalCost = active.reduce((sum, o) => sum + (o.totalCost || 0), 0)
+    const totalProfit = active.reduce((sum, o) => sum + (o.profit || 0), 0)
     const pending = active.filter(o => o.status === 'pending').length
     const baking = active.filter(o => o.status === 'baking').length
     const delivered = active.filter(o => o.status === 'delivered').length
@@ -118,7 +129,9 @@ export const BreadOrderProvider = ({ children }) => {
 
     return {
       totalOrders,
-      totalAmount,
+      totalSelling,
+      totalCost,
+      totalProfit,
       pending,
       baking,
       delivered,
