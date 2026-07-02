@@ -75,7 +75,7 @@ const Dashboard = () => {
     }
   }, [customers, riceCreditTransactions, cashLoans, breadOrders, incomes, expenses, payables])
 
-  // Prepare recent transactions and chart data - only runs when data changes
+  // Prepare recent transactions and chart data
   useEffect(() => {
     const allTransactions = []
 
