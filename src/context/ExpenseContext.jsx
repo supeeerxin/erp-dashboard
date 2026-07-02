@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 import { generateExpenseNumber } from '../utils/transactionUtils'
 
 const ExpenseContext = createContext()
@@ -16,6 +17,7 @@ export const ExpenseProvider = ({ children }) => {
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('expenses')
@@ -43,39 +45,48 @@ export const ExpenseProvider = ({ children }) => {
     }
     setExpenses(prev => [...prev, newExpense])
     showNotification(`Expense ${newExpense.transactionNumber} recorded!`, 'success')
+    addLog('Created', 'Expense', `Recorded expense: ${newExpense.transactionNumber} - ${data.item} (₱${data.amount})`)
     return newExpense
   }
 
   const updateExpense = (id, data) => {
+    const expense = expenses.find(e => e.id === id)
     setExpenses(prev => prev.map(expense =>
       expense.id === id
         ? { ...expense, ...data, updatedAt: new Date().toISOString() }
         : expense
     ))
     showNotification('Expense updated!', 'success')
+    addLog('Updated', 'Expense', `Updated expense: ${expense?.transactionNumber || 'Unknown'}`)
   }
 
   const deleteExpense = (id) => {
+    const expense = expenses.find(e => e.id === id)
     setExpenses(prev => prev.map(expense =>
       expense.id === id
         ? { ...expense, isDeleted: true, deletedAt: new Date().toISOString() }
         : expense
     ))
     showNotification('Expense moved to trash', 'warning')
+    addLog('Deleted', 'Expense', `Soft deleted expense: ${expense?.transactionNumber || 'Unknown'}`)
   }
 
   const restoreExpense = (id) => {
+    const expense = expenses.find(e => e.id === id)
     setExpenses(prev => prev.map(expense =>
       expense.id === id
         ? { ...expense, isDeleted: false, deletedAt: null }
         : expense
     ))
     showNotification('Expense restored!', 'success')
+    addLog('Restored', 'Expense', `Restored expense: ${expense?.transactionNumber || 'Unknown'}`)
   }
 
   const permanentDeleteExpense = (id) => {
+    const expense = expenses.find(e => e.id === id)
     setExpenses(prev => prev.filter(expense => expense.id !== id))
     showNotification('Expense permanently deleted', 'error')
+    addLog('Deleted', 'Expense', `Permanently deleted expense: ${expense?.transactionNumber || 'Unknown'}`)
   }
 
   const getActiveExpenses = () => {
@@ -91,14 +102,12 @@ export const ExpenseProvider = ({ children }) => {
     const totalAmount = active.reduce((sum, e) => sum + (e.amount || 0), 0)
     const count = active.length
 
-    // Group by category
     const byCategory = active.reduce((acc, e) => {
       const category = e.category || 'Other'
       acc[category] = (acc[category] || 0) + (e.amount || 0)
       return acc
     }, {})
 
-    // Group by month
     const byMonth = active.reduce((acc, e) => {
       const month = new Date(e.date || e.createdAt).toLocaleString('default', { month: 'short', year: 'numeric' })
       acc[month] = (acc[month] || 0) + (e.amount || 0)
