@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
 import { generateLoanNumber } from '../utils/transactionUtils'
+import { isAfter, parseISO } from 'date-fns'
 
 const CashLoanContext = createContext()
 
@@ -27,6 +28,19 @@ export const CashLoanProvider = ({ children }) => {
 
   useEffect(() => {
     if (!loading) {
+      // Check for overdue loans
+      const updatedLoans = loans.map(loan => {
+        if (loan.status === 'active' && loan.dueDate) {
+          const dueDate = parseISO(loan.dueDate)
+          if (isAfter(new Date(), dueDate)) {
+            return { ...loan, status: 'overdue' }
+          }
+        }
+        return loan
+      })
+      if (JSON.stringify(updatedLoans) !== JSON.stringify(loans)) {
+        setLoans(updatedLoans)
+      }
       localStorage.setItem('cashLoans', JSON.stringify(loans))
     }
   }, [loans, loading])
@@ -34,7 +48,7 @@ export const CashLoanProvider = ({ children }) => {
   const addLoan = (data) => {
     const principal = data.principal
     const interestRate = data.interestRate || 0
-    const interestType = data.interestType || 'fixed' // fixed, percentage
+    const interestType = data.interestType || 'fixed'
     const interestAmount = interestType === 'percentage' 
       ? (principal * interestRate / 100) 
       : interestRate
@@ -52,10 +66,23 @@ export const CashLoanProvider = ({ children }) => {
       type: 'downpayment'
     }] : []
 
+    // Auto-compute due date if not provided
+    let dueDate = data.dueDate
+    if (!dueDate && data.termValue) {
+      const today = new Date()
+      const termValue = parseInt(data.termValue) || 1
+      if (data.paymentTerm === 'months') {
+        dueDate = new Date(today.setMonth(today.getMonth() + termValue)).toISOString().split('T')[0]
+      } else if (data.paymentTerm === 'days') {
+        dueDate = new Date(today.setDate(today.getDate() + termValue)).toISOString().split('T')[0]
+      }
+    }
+
     const newLoan = {
       id: Date.now(),
       transactionNumber: generateLoanNumber(),
       ...data,
+      dueDate: dueDate || data.dueDate,
       interestAmount: interestAmount,
       totalPayable: totalPayable,
       downPayment: downPayment,
