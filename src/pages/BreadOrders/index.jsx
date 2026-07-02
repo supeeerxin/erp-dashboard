@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ShoppingBag, Plus, Search, Edit2, Trash2, RotateCcw, Eye, Archive, Package, CheckCircle, Clock, Truck, List, Grid } from 'lucide-react'
+import { ShoppingBag, Plus, Search, Edit2, Trash2, RotateCcw, Eye, Archive, Package, CheckCircle, Clock, Truck, List } from 'lucide-react'
 import { useBreadOrders } from '../../context/BreadOrderContext'
 import { useBreadProducts } from '../../context/BreadProductContext'
 import { useCustomers } from '../../context/CustomerContext'
@@ -143,10 +143,10 @@ const BreadOrders = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bread Orders</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage bread orders with box and piece pricing
+            Manage bread orders with selling price and cost tracking
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setShowProducts(!showProducts)}
             className={`btn-secondary flex items-center gap-2 ${showProducts ? 'bg-primary-500 text-white hover:bg-primary-600' : ''}`}
@@ -191,19 +191,21 @@ const BreadOrders = () => {
           </div>
           <div className="card p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
-            <p className="text-lg font-bold text-primary-500">₱{totals.totalAmount.toLocaleString()}</p>
+            <p className="text-lg font-bold text-primary-500">₱{totals.totalSelling?.toLocaleString() || 0}</p>
           </div>
           <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-            <p className="text-lg font-bold text-yellow-500">{totals.pending}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Total Cost</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">₱{totals.totalCost?.toLocaleString() || 0}</p>
           </div>
           <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Baking</p>
-            <p className="text-lg font-bold text-blue-500">{totals.baking}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Total Profit</p>
+            <p className={`text-lg font-bold ${(totals.totalProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              ₱{totals.totalProfit?.toLocaleString() || 0}
+            </p>
           </div>
           <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Delivered</p>
-            <p className="text-lg font-bold text-green-500">{totals.delivered}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+            <p className="text-lg font-bold text-green-500">{totals.completed}</p>
           </div>
         </div>
       )}
@@ -214,7 +216,7 @@ const BreadOrders = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder={showProducts ? "Search products..." : showTrash ? "Search trash..." : "Search orders..."}
+            placeholder={showProducts ? "Search products..." : showTrash ? "Search trash..." : "Search orders by customer, product, or transaction #..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input-field pl-10"
@@ -241,10 +243,11 @@ const BreadOrders = () => {
                     <h3 className="font-semibold text-gray-900 dark:text-white">{product.name}</h3>
                     <div className="mt-2 space-y-1 text-sm">
                       <p className="text-gray-600 dark:text-gray-400">
-                        Box: <span className="font-medium text-primary-500">₱{product.pricePerBox.toLocaleString()}</span>
+                        Selling Price: <span className="font-medium text-primary-500">₱{product.sellingPricePerBox?.toLocaleString() || 0}/box</span>
+                        <span className="text-gray-400 ml-1">({product.piecesPerBox || 24} pcs)</span>
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Piece: <span className="font-medium text-primary-500">₱{product.pricePerPiece.toLocaleString()}</span>
+                        Per Piece: <span className="font-medium text-primary-500">₱{product.sellingPricePerPiece?.toLocaleString() || 0}</span>
                       </p>
                     </div>
                   </div>
@@ -295,7 +298,9 @@ const BreadOrders = () => {
                     <th className="table-header">Product</th>
                     <th className="table-header text-right">Boxes</th>
                     <th className="table-header text-right">Pieces</th>
-                    <th className="table-header text-right">Total</th>
+                    <th className="table-header text-right">Selling</th>
+                    <th className="table-header text-right">Cost</th>
+                    <th className="table-header text-right">Profit</th>
                     <th className="table-header">Status</th>
                     <th className="table-header text-right">Actions</th>
                   </tr>
@@ -322,8 +327,14 @@ const BreadOrders = () => {
                         <td className="table-cell text-right">
                           {order.pieces || 0}
                         </td>
-                        <td className="table-cell text-right font-medium text-primary-500">
-                          ₱{order.totalAmount.toLocaleString()}
+                        <td className="table-cell text-right text-primary-500 font-medium">
+                          ₱{order.totalSellingPrice?.toLocaleString() || 0}
+                        </td>
+                        <td className="table-cell text-right text-gray-500">
+                          ₱{order.totalCost?.toLocaleString() || 0}
+                        </td>
+                        <td className={`table-cell text-right font-medium ${(order.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ₱{order.profit?.toLocaleString() || 0}
                         </td>
                         <td className="table-cell">
                           <div className="flex items-center gap-2">
@@ -334,7 +345,7 @@ const BreadOrders = () => {
                           </div>
                         </td>
                         <td className="table-cell text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1 flex-wrap">
                             <button
                               onClick={() => handleViewHistory(order)}
                               className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
