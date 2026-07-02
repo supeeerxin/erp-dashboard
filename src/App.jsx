@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import { CustomerProvider } from './context/CustomerContext'
 import { RiceCreditProvider } from './context/RiceCreditContext'
+import { CashLoanProvider } from './context/CashLoanContext'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import Layout from './components/layout/Layout'
 import LoadingSkeleton from './components/common/LoadingSkeleton'
@@ -29,27 +30,29 @@ function App() {
         <NotificationProvider>
           <CustomerProvider>
             <RiceCreditProvider>
-              <Router>
-                <Suspense fallback={<LoadingSkeleton />}>
-                  <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                      <Route index element={<Navigate to="/dashboard" replace />} />
-                      <Route path="dashboard" element={<Dashboard />} />
-                      <Route path="rice-credit" element={<RiceCredit />} />
-                      <Route path="cash-loans" element={<CashLoans />} />
-                      <Route path="bread-orders" element={<BreadOrders />} />
-                      <Route path="customers" element={<Customers />} />
-                      <Route path="income" element={<Income />} />
-                      <Route path="expenses" element={<Expenses />} />
-                      <Route path="wallet" element={<Wallet />} />
-                      <Route path="reports" element={<Reports />} />
-                      <Route path="settings" element={<Settings />} />
-                    </Route>
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
-              </Router>
+              <CashLoanProvider>
+                <Router>
+                  <Suspense fallback={<LoadingSkeleton />}>
+                    <Routes>
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                        <Route index element={<Navigate to="/dashboard" replace />} />
+                        <Route path="dashboard" element={<Dashboard />} />
+                        <Route path="rice-credit" element={<RiceCredit />} />
+                        <Route path="cash-loans" element={<CashLoans />} />
+                        <Route path="bread-orders" element={<BreadOrders />} />
+                        <Route path="customers" element={<Customers />} />
+                        <Route path="income" element={<Income />} />
+                        <Route path="expenses" element={<Expenses />} />
+                        <Route path="wallet" element={<Wallet />} />
+                        <Route path="reports" element={<Reports />} />
+                        <Route path="settings" element={<Settings />} />
+                      </Route>
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </Router>
+              </CashLoanProvider>
             </RiceCreditProvider>
           </CustomerProvider>
         </NotificationProvider>
