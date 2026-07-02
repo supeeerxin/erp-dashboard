@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
-import { useAudit } from './AuditContext'
 import { generateLoanNumber } from '../utils/transactionUtils'
 import { isAfter, parseISO } from 'date-fns'
 
@@ -18,7 +17,6 @@ export const CashLoanProvider = ({ children }) => {
   const [loans, setLoans] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
-  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('cashLoans')
