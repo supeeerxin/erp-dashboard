@@ -17,6 +17,7 @@ import {
   FileText
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { Calendar as CalendarIcon } from 'lucide-react'
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { logout } = useAuth()
@@ -33,6 +34,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/wallet', icon: Wallet, label: 'Wallet' },
     { path: '/reports', icon: BarChart3, label: 'Reports' },
     { path: '/audit-log', icon: FileText, label: 'Audit Log' },
+    { path: '/due-dates', icon: CalendarIcon, label: 'Due Dates' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ]
 
