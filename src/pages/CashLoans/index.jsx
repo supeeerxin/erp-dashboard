@@ -92,6 +92,7 @@ const CashLoans = () => {
   }
 
   const handleViewHistory = (loan) => {
+    console.log('Viewing history for loan:', loan)
     setSelectedLoan(loan)
     setIsHistoryModalOpen(true)
   }
@@ -204,9 +205,7 @@ const CashLoans = () => {
                   <th className="table-header">Customer</th>
                   <th className="table-header text-right">Principal</th>
                   <th className="table-header text-right">Interest</th>
-                  <th className="table-header">Due Date</th>
                   <th className="table-header text-right">Total</th>
-                  
                   <th className="table-header text-right">Paid</th>
                   <th className="table-header text-right">Balance</th>
                   <th className="table-header">Status</th>
@@ -233,9 +232,6 @@ const CashLoans = () => {
                       <td className="table-cell text-right text-yellow-600 dark:text-yellow-400">
                         ₱{loan.interestAmount.toLocaleString()}
                       </td>
-                      <td className="table-cell text-sm">
-  {loan.dueDate ? new Date(loan.dueDate).toLocaleDateString() : 'N/A'}
-</td>
                       <td className="table-cell text-right font-medium text-primary-500">
                         ₱{loan.totalPayable.toLocaleString()}
                       </td>
@@ -254,7 +250,10 @@ const CashLoans = () => {
                       <td className="table-cell text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleViewHistory(loan)}
+                            onClick={() => {
+                              console.log('View button clicked for loan:', loan)
+                              handleViewHistory(loan)
+                            }}
                             className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
                             title="View History"
                           >
@@ -332,11 +331,13 @@ const CashLoans = () => {
           getCustomer(selectedLoan.customerId)?.name || selectedLoan.customerName : ''
         }
         remainingBalance={selectedLoan?.remainingBalance || 0}
+        suggestedAmount={selectedLoan?.paymentPerGive || 0}
       />
 
       <TransactionHistoryModal
         isOpen={isHistoryModalOpen}
         onClose={() => {
+          console.log('Closing history modal')
           setIsHistoryModalOpen(false)
           setSelectedLoan(null)
         }}
