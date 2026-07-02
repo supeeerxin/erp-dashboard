@@ -16,12 +16,41 @@ import ProtectedRoute from './components/common/ProtectedRoute'
 import Layout from './components/layout/Layout'
 import LoadingSkeleton from './components/common/LoadingSkeleton'
 
-// Import supabase to ensure it's bundled
-import { supabase, testConnection } from './services/supabase.js'
+// ============================================
+// SUPABASE DIRECTLY IN APP.JSX
+// ============================================
+import { createClient } from '@supabase/supabase-js'
 
-// Make supabase available globally for testing
-window.supabase = supabase
-window.testSupabase = testConnection
+const supabaseUrl = 'https://tgdeodxkdymhezfdfncm.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnZGVvZHhrZHltaGV6ZmRmbmNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NzQzNDUsImV4cCI6MjA5ODU1MDM0NX0.jWoP7wUymhyKcVlcVRgJrB1WULAw352ITcqcqRs2OQQ'
+
+console.log('🔑 Supabase URL:', supabaseUrl)
+console.log('🔑 Supabase Key exists:', !!supabaseKey)
+
+export const supabase = createClient(supabaseUrl, supabaseKey)
+
+// Test function
+window.testSupabase = async function() {
+  try {
+    console.log('🔍 Testing Supabase...')
+    const { data, error } = await supabase
+      .from('customers')
+      .select('count', { count: 'exact', head: true })
+    
+    if (error) {
+      console.error('❌ Error:', error)
+      return false
+    }
+    console.log('✅ Connected! Total customers:', data)
+    return true
+  } catch (err) {
+    console.error('❌ Failed:', err)
+    return false
+  }
+}
+
+console.log('✅ Supabase initialized!')
+// ============================================
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const RiceCredit = lazy(() => import('./pages/RiceCredit'))
