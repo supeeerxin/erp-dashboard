@@ -16,6 +16,7 @@ import ProtectedRoute from './components/common/ProtectedRoute'
 import Layout from './components/layout/Layout'
 import LoadingSkeleton from './components/common/LoadingSkeleton'
 
+// Lazy load pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const RiceCredit = lazy(() => import('./pages/RiceCredit'))
 const CashLoans = lazy(() => import('./pages/CashLoans'))
@@ -28,9 +29,9 @@ const Reports = lazy(() => import('./pages/Reports'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Payables = lazy(() => import('./pages/Payables'))
 const AuditLog = lazy(() => import('./pages/AuditLog'))
+const DueDates = lazy(() => import('./pages/DueDates'))
 const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/NotFound'))
-const DueDates = lazy(() => import('./pages/DueDates'))
 
 function App() {
   return (
