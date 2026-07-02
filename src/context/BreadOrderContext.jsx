@@ -17,9 +17,6 @@ export const BreadOrderProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
 
-  // We'll use a ref to access the product context without circular dependency
-  let productContext = null
-
   useEffect(() => {
     const saved = localStorage.getItem('breadOrders')
     if (saved) {
@@ -34,59 +31,24 @@ export const BreadOrderProvider = ({ children }) => {
     }
   }, [orders, loading])
 
-  // Function to get product context
-  const getProductContext = () => {
-    if (!productContext) {
-      // Import dynamically to avoid circular dependency
-      const { useBreadProducts } = require('./BreadProductContext')
-      productContext = useBreadProducts()
-    }
-    return productContext
-  }
-
   const addOrder = (data) => {
     try {
-      // Check if we have the product context
-      const { products, deductInventory } = getProductContext()
-      
-      // Find the product
-      const product = products.find(p => p.id === data.productId)
-      
-      if (!product) {
-        showNotification('Product not found!', 'error')
-        return null
-      }
-
-      // Check stock
+      // Calculate totals from the data passed from the modal
       const boxes = data.boxes || 0
       const pieces = data.pieces || 0
+      const sellingPricePerBox = data.sellingPricePerBox || 0
+      const sellingPricePerPiece = data.sellingPricePerPiece || 0
+      const costPerBox = data.costPerBox || 0
+      const costPerPiece = data.costPerPiece || 0
       
-      if (boxes > (product.stockBoxes || 0)) {
-        showNotification(`Not enough boxes! Available: ${product.stockBoxes}`, 'error')
-        return null
-      }
-      if (pieces > (product.stockPieces || 0)) {
-        showNotification(`Not enough pieces! Available: ${product.stockPieces}`, 'error')
-        return null
-      }
-
-      // Calculate totals
-      const totalSellingPrice = (boxes * (product.sellingPricePerBox || 0)) + (pieces * (product.sellingPricePerPiece || 0))
-      const totalCost = (boxes * (product.costPerBox || 0)) + (pieces * (product.costPerPiece || 0))
+      const totalSellingPrice = (boxes * sellingPricePerBox) + (pieces * sellingPricePerPiece)
+      const totalCost = (boxes * costPerBox) + (pieces * costPerPiece)
       const profit = totalSellingPrice - totalCost
-
-      // Deduct from inventory
-      deductInventory(data.productId, boxes, pieces)
 
       const newOrder = {
         id: Date.now(),
         transactionNumber: generateOrderNumber(),
         ...data,
-        productName: product.name,
-        sellingPricePerBox: product.sellingPricePerBox || 0,
-        sellingPricePerPiece: product.sellingPricePerPiece || 0,
-        costPerBox: product.costPerBox || 0,
-        costPerPiece: product.costPerPiece || 0,
         totalSellingPrice: totalSellingPrice,
         totalCost: totalCost,
         profit: profit,
@@ -111,7 +73,6 @@ export const BreadOrderProvider = ({ children }) => {
       if (order.id === id) {
         const updated = { ...order, ...data, updatedAt: new Date().toISOString() }
         
-        // Recalculate totals if quantity changed
         if (data.boxes !== undefined || data.pieces !== undefined) {
           const boxes = data.boxes !== undefined ? data.boxes : order.boxes
           const pieces = data.pieces !== undefined ? data.pieces : order.pieces
