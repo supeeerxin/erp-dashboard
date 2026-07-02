@@ -16,13 +16,13 @@ export const BreadProductProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
 
-  // Default products
+  // Default products with piecesPerBox
   const defaultProducts = [
-    { id: 1, name: 'Pandesal', pricePerBox: 250, pricePerPiece: 2.5 },
-    { id: 2, name: 'Monay', pricePerBox: 300, pricePerPiece: 3 },
-    { id: 3, name: 'Ensaymada', pricePerBox: 400, pricePerPiece: 4 },
-    { id: 4, name: 'Pan de Coco', pricePerBox: 350, pricePerPiece: 3.5 },
-    { id: 5, name: 'Spanish Bread', pricePerBox: 380, pricePerPiece: 3.8 },
+    { id: 1, name: 'Pandesal', pricePerBox: 250, piecesPerBox: 24, pricePerPiece: 10.42 },
+    { id: 2, name: 'Monay', pricePerBox: 300, piecesPerBox: 24, pricePerPiece: 12.50 },
+    { id: 3, name: 'Ensaymada', pricePerBox: 400, piecesPerBox: 20, pricePerPiece: 20.00 },
+    { id: 4, name: 'Pan de Coco', pricePerBox: 350, piecesPerBox: 24, pricePerPiece: 14.58 },
+    { id: 5, name: 'Spanish Bread', pricePerBox: 380, piecesPerBox: 20, pricePerPiece: 19.00 },
   ]
 
   useEffect(() => {
