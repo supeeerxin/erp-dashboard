@@ -22,20 +22,37 @@ import { useAuth } from '../../context/AuthContext'
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { logout } = useAuth()
 
-  const menuItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/due-dates', icon: Calendar, label: 'Due Dates' },
-    { path: '/rice-credit', icon: Package, label: 'Rice Credit' },
-    { path: '/cash-loans', icon: DollarSign, label: 'Cash Loans' },
-    { path: '/bread-orders', icon: ShoppingBag, label: 'Bread Orders' },
-    { path: '/customers', icon: Users, label: 'Customers' },
-    { path: '/income', icon: TrendingUp, label: 'Income' },
-    { path: '/expenses', icon: TrendingDown, label: 'Expenses' },
-    { path: '/payables', icon: CreditCard, label: 'Payables' },
-    { path: '/wallet', icon: Wallet, label: 'Wallet' },
-    { path: '/reports', icon: BarChart3, label: 'Reports' },
-    { path: '/audit-log', icon: FileText, label: 'Audit Log' },
-    { path: '/settings', icon: Settings, label: 'Settings' },
+  // Grouped menu items with separators
+  const menuGroups = [
+    {
+      items: [
+        { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+        { path: '/due-dates', icon: Calendar, label: 'Due Dates' },
+      ]
+    },
+    {
+      items: [
+        { path: '/rice-credit', icon: Package, label: 'Rice Credit' },
+        { path: '/cash-loans', icon: DollarSign, label: 'Cash Loans' },
+        { path: '/bread-orders', icon: ShoppingBag, label: 'Bread Orders' },
+        { path: '/customers', icon: Users, label: 'Customers' },
+      ]
+    },
+    {
+      items: [
+        { path: '/income', icon: TrendingUp, label: 'Income' },
+        { path: '/expenses', icon: TrendingDown, label: 'Expenses' },
+        { path: '/payables', icon: CreditCard, label: 'Payables' },
+        { path: '/wallet', icon: Wallet, label: 'Wallet' },
+      ]
+    },
+    {
+      items: [
+        { path: '/reports', icon: BarChart3, label: 'Reports' },
+        { path: '/audit-log', icon: FileText, label: 'Audit Log' },
+        { path: '/settings', icon: Settings, label: 'Settings' },
+      ]
+    }
   ]
 
   const handleLogout = () => {
@@ -58,6 +75,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         lg:translate-x-0
         flex flex-col
       `}>
+        {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
@@ -73,26 +91,37 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsOpen(false)}
-              className={({ isActive }) => `
-                flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
-                ${isActive 
-                  ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }
-              `}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span>{item.label}</span>
-            </NavLink>
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4">
+          {menuGroups.map((group, groupIndex) => (
+            <div key={groupIndex}>
+              {groupIndex > 0 && (
+                <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+              )}
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsOpen(false)}
+                    className={({ isActive }) => `
+                      flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                      ${isActive 
+                        ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }
+                    `}
+                  >
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
+        {/* Logout */}
         <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
           <button
             onClick={handleLogout}
