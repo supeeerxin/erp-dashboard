@@ -15,7 +15,13 @@ import { AuditProvider } from './context/AuditContext'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import Layout from './components/layout/Layout'
 import LoadingSkeleton from './components/common/LoadingSkeleton'
-import './services/supabase.js'
+
+// Import supabase to ensure it's bundled
+import { supabase, testConnection } from './services/supabase.js'
+
+// Make supabase available globally for testing
+window.supabase = supabase
+window.testSupabase = testConnection
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const RiceCredit = lazy(() => import('./pages/RiceCredit'))
