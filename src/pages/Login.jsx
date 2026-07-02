@@ -52,10 +52,10 @@ const Login = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-500 rounded-2xl shadow-lg shadow-primary-500/30 mb-4">
-            <span className="text-white text-3xl font-bold">E</span>
+            <span className="text-white text-3xl font-bold">Yeorins</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            RX Dashboard
+            Rissa & Xinia Business Dashboard
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Sign in to your account
