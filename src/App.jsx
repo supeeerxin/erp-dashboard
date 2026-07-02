@@ -18,9 +18,6 @@ import ProtectedRoute from './components/common/ProtectedRoute'
 import Layout from './components/layout/Layout'
 import LoadingSkeleton from './components/common/LoadingSkeleton'
 
-// Import Supabase client
-import './services/supabase'
-
 // Lazy Pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const RiceCredit = lazy(() => import('./pages/RiceCredit'))
