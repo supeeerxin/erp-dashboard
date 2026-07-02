@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, Calendar, Clock, CheckCircle, AlertCircle, Printer, Download, Hash } from 'lucide-react'
+import { X, Calendar, Clock, CheckCircle, Printer, Download, Hash } from 'lucide-react'
 import { useCustomers } from '../../context/CustomerContext'
 
 const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
@@ -8,8 +8,15 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
   if (!isOpen || !transaction) return null
 
   const customer = getCustomer(transaction.customerId)
-  const totalPaid = transaction.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+  
+  // Safe access to properties with fallbacks
+  const totalPaid = transaction.payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
   const isCompleted = transaction.status === 'completed'
+  const transactionNumber = transaction.transactionNumber || `TRX-${String(transaction.id || '').slice(-6)}`
+  const amount = transaction.amount || 0
+  const remainingBalance = transaction.remainingBalance || 0
+  const customerName = customer?.name || transaction.customerName || 'Unknown'
+  const payments = transaction.payments || []
 
   const getPaymentTypeLabel = (type) => {
     switch (type) {
@@ -34,20 +41,30 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
   }
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    if (!dateString) return 'N/A'
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    } catch {
+      return 'N/A'
+    }
   }
 
   const formatTime = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    if (!dateString) return 'N/A'
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return 'N/A'
+    }
   }
 
   const handlePrint = () => {
@@ -56,22 +73,22 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
 
   const handleExport = () => {
     let csv = 'Transaction Number,Date,Time,Type,Amount,Balance\n'
-    let runningBalance = transaction.amount
+    let runningBalance = amount
     
-    csv += `Transaction #${transaction.transactionNumber || transaction.id}\n`
-    csv += `Customer: ${customer?.name || transaction.customerName}\n`
-    csv += `Total Amount: ₱${transaction.amount.toFixed(2)}\n\n`
+    csv += `Transaction #${transactionNumber}\n`
+    csv += `Customer: ${customerName}\n`
+    csv += `Total Amount: ₱${amount.toFixed(2)}\n\n`
     
-    transaction.payments?.forEach(p => {
-      runningBalance -= p.amount
-      csv += `${transaction.transactionNumber || transaction.id},${formatDate(p.date)},${formatTime(p.date)},${getPaymentTypeLabel(p.type)},₱${p.amount.toFixed(2)},₱${runningBalance.toFixed(2)}\n`
+    payments.forEach(p => {
+      runningBalance -= (p.amount || 0)
+      csv += `${transactionNumber},${formatDate(p.date)},${formatTime(p.date)},${getPaymentTypeLabel(p.type)},₱${(p.amount || 0).toFixed(2)},₱${runningBalance.toFixed(2)}\n`
     })
     
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `payment-history-${transaction.transactionNumber || transaction.id}.csv`
+    a.download = `payment-history-${transactionNumber}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -88,7 +105,7 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
             <div className="flex items-center gap-2 mt-1">
               <Hash className="w-4 h-4 text-gray-400" />
               <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
-                {transaction.transactionNumber || `TRX-${transaction.id.toString().slice(-6)}`}
+                {transactionNumber}
               </p>
             </div>
           </div>
@@ -122,13 +139,13 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Customer</p>
               <p className="font-medium text-gray-900 dark:text-white">
-                {customer?.name || transaction.customerName || 'Unknown'}
+                {customerName}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
               <p className="font-bold text-gray-900 dark:text-white">
-                ₱{transaction.amount.toLocaleString()}
+                ₱{amount.toLocaleString()}
               </p>
             </div>
             <div>
@@ -149,23 +166,23 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
         {/* Payment History */}
         <div className="p-6">
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-            Payment Records ({transaction.payments?.length || 0})
+            Payment Records ({payments.length})
           </h4>
 
-          {transaction.payments?.length === 0 ? (
+          {payments.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 dark:text-gray-400">No payments recorded yet</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {transaction.payments.map((payment, index) => {
-                const runningBalance = transaction.amount - transaction.payments
+              {payments.map((payment, index) => {
+                const runningBalance = amount - payments
                   .slice(0, index + 1)
-                  .reduce((sum, p) => sum + p.amount, 0)
+                  .reduce((sum, p) => sum + (p.amount || 0), 0)
                 
                 return (
                   <div 
-                    key={payment.id}
+                    key={payment.id || index}
                     className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     <div className={`p-2 rounded-lg bg-opacity-10 ${payment.type === 'downpayment' ? 'bg-blue-500' : 'bg-green-500'}`}>
@@ -195,7 +212,7 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-gray-900 dark:text-white">
-                            ₱{payment.amount.toLocaleString()}
+                            ₱{(payment.amount || 0).toLocaleString()}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             Balance: ₱{runningBalance.toLocaleString()}
@@ -220,8 +237,8 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500 dark:text-gray-400">Remaining Balance</p>
-                <p className={`text-lg font-bold ${transaction.remainingBalance === 0 ? 'text-green-600' : 'text-primary-500'}`}>
-                  ₱{transaction.remainingBalance.toLocaleString()}
+                <p className={`text-lg font-bold ${remainingBalance === 0 ? 'text-green-600' : 'text-primary-500'}`}>
+                  ₱{remainingBalance.toLocaleString()}
                 </p>
               </div>
             </div>
