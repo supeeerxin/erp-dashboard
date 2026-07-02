@@ -70,6 +70,17 @@ const BreadOrders = () => {
     }
   }
 
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="w-4 h-4" />
+      case 'delivered':
+        return <Truck className="w-4 h-4" />
+      default:
+        return <Clock className="w-4 h-4" />
+    }
+  }
+
   const handleAddOrder = (data) => {
     const result = addOrder(data)
     if (result === null) {
@@ -101,10 +112,6 @@ const BreadOrders = () => {
     if (window.confirm('Permanently delete this order?')) {
       permanentDeleteOrder(id)
     }
-  }
-
-  const handleStatusChange = (id, status) => {
-    updateOrderStatus(id, status)
   }
 
   const handleViewHistory = (order) => {
@@ -397,15 +404,12 @@ const BreadOrders = () => {
                             )}
 
                             {!order.isDeleted && (
-                              <select
-                                value={order.status}
-                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                className="text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                              <button
+                                onClick={() => handleEditOrder(order)}
+                                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                               >
-                                <option value="pending">Pending</option>
-                                <option value="delivered">Delivered</option>
-                                <option value="completed">Paid</option>
-                              </select>
+                                <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                              </button>
                             )}
 
                             {order.isDeleted ? (
@@ -426,20 +430,13 @@ const BreadOrders = () => {
                                 </button>
                               </>
                             ) : (
-                              <>
-                                <button
-                                  onClick={() => handleEditOrder(order)}
-                                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                  <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteOrder(order.id)}
-                                  className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                </button>
-                              </>
+                              <button
+                                onClick={() => handleDeleteOrder(order.id)}
+                                className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                                title="Move to trash"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </button>
                             )}
                           </div>
                         </td>
