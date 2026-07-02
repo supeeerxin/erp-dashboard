@@ -12,7 +12,8 @@ import {
   BarChart3, 
   Settings,
   X,
-  LogOut
+  LogOut,
+  CreditCard
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -39,7 +40,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   return (
     <>
-      {/* Mobile backdrop */}
       {isOpen && (
         <div 
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -54,7 +54,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         lg:translate-x-0
         flex flex-col
       `}>
-        {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
@@ -70,7 +69,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {menuItems.map((item) => (
             <NavLink
@@ -91,7 +89,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           ))}
         </nav>
 
-        {/* Logout */}
         <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
           <button
             onClick={handleLogout}
