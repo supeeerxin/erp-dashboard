@@ -13,7 +13,8 @@ import {
   Settings,
   X,
   LogOut,
-  CreditCard
+  CreditCard,
+  FileText
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -31,6 +32,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/payables', icon: CreditCard, label: 'Payables' },
     { path: '/wallet', icon: Wallet, label: 'Wallet' },
     { path: '/reports', icon: BarChart3, label: 'Reports' },
+    { path: '/audit-log', icon: FileText, label: 'Audit Log' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ]
 
