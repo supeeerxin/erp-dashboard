@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
 import { generateOrderNumber } from '../utils/transactionUtils'
-import { useBreadProducts } from './BreadProductContext'
 
 const BreadOrderContext = createContext()
 
@@ -17,7 +16,9 @@ export const BreadOrderProvider = ({ children }) => {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
-  const { deductInventory, restoreInventory } = useBreadProducts()
+
+  // We'll use a ref to access the product context without circular dependency
+  let productContext = null
 
   useEffect(() => {
     const saved = localStorage.getItem('breadOrders')
@@ -33,74 +34,96 @@ export const BreadOrderProvider = ({ children }) => {
     }
   }, [orders, loading])
 
+  // Function to get product context
+  const getProductContext = () => {
+    if (!productContext) {
+      // Import dynamically to avoid circular dependency
+      const { useBreadProducts } = require('./BreadProductContext')
+      productContext = useBreadProducts()
+    }
+    return productContext
+  }
+
   const addOrder = (data) => {
-    // Check if enough stock
-    const product = useBreadProducts().getProduct(data.productId)
-    if (product) {
-      const availableBoxes = product.stockBoxes || 0
-      const availablePieces = product.stockPieces || 0
+    try {
+      // Check if we have the product context
+      const { products, deductInventory } = getProductContext()
       
-      if ((data.boxes || 0) > availableBoxes) {
-        showNotification(`Not enough boxes! Available: ${availableBoxes}`, 'error')
+      // Find the product
+      const product = products.find(p => p.id === data.productId)
+      
+      if (!product) {
+        showNotification('Product not found!', 'error')
         return null
       }
-      if ((data.pieces || 0) > availablePieces) {
-        showNotification(`Not enough pieces! Available: ${availablePieces}`, 'error')
+
+      // Check stock
+      const boxes = data.boxes || 0
+      const pieces = data.pieces || 0
+      
+      if (boxes > (product.stockBoxes || 0)) {
+        showNotification(`Not enough boxes! Available: ${product.stockBoxes}`, 'error')
         return null
       }
+      if (pieces > (product.stockPieces || 0)) {
+        showNotification(`Not enough pieces! Available: ${product.stockPieces}`, 'error')
+        return null
+      }
+
+      // Calculate totals
+      const totalSellingPrice = (boxes * (product.sellingPricePerBox || 0)) + (pieces * (product.sellingPricePerPiece || 0))
+      const totalCost = (boxes * (product.costPerBox || 0)) + (pieces * (product.costPerPiece || 0))
+      const profit = totalSellingPrice - totalCost
+
+      // Deduct from inventory
+      deductInventory(data.productId, boxes, pieces)
+
+      const newOrder = {
+        id: Date.now(),
+        transactionNumber: generateOrderNumber(),
+        ...data,
+        productName: product.name,
+        sellingPricePerBox: product.sellingPricePerBox || 0,
+        sellingPricePerPiece: product.sellingPricePerPiece || 0,
+        costPerBox: product.costPerBox || 0,
+        costPerPiece: product.costPerPiece || 0,
+        totalSellingPrice: totalSellingPrice,
+        totalCost: totalCost,
+        profit: profit,
+        status: data.status || 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isDeleted: false
+      }
+      
+      setOrders(prev => [...prev, newOrder])
+      showNotification(`Order ${newOrder.transactionNumber} created!`, 'success')
+      return newOrder
+    } catch (error) {
+      console.error('Error creating order:', error)
+      showNotification('Failed to create order. Please try again.', 'error')
+      return null
     }
-
-    // Calculate totals
-    const totalSellingPrice = (data.boxes || 0) * (data.sellingPricePerBox || 0) + (data.pieces || 0) * (data.sellingPricePerPiece || 0)
-    const totalCost = (data.boxes || 0) * (data.costPerBox || 0) + (data.pieces || 0) * (data.costPerPiece || 0)
-    const profit = totalSellingPrice - totalCost
-
-    // Deduct from inventory
-    deductInventory(data.productId, data.boxes || 0, data.pieces || 0)
-
-    const newOrder = {
-      id: Date.now(),
-      transactionNumber: generateOrderNumber(),
-      ...data,
-      totalSellingPrice: totalSellingPrice,
-      totalCost: totalCost,
-      profit: profit,
-      status: data.status || 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isDeleted: false
-    }
-    setOrders(prev => [...prev, newOrder])
-    showNotification(`Order ${newOrder.transactionNumber} created!`, 'success')
-    return newOrder
   }
 
   const updateOrder = (id, data) => {
     setOrders(prev => prev.map(order => {
       if (order.id === id) {
-        // If status is being updated to completed (paid)
-        if (data.status === 'completed' && order.status !== 'completed') {
-          showNotification(`Order ${order.transactionNumber} marked as paid!`, 'success')
-        }
-        
-        // If status is being updated to delivered
-        if (data.status === 'delivered' && order.status !== 'delivered') {
-          showNotification(`Order ${order.transactionNumber} delivered!`, 'success')
-        }
-
         const updated = { ...order, ...data, updatedAt: new Date().toISOString() }
         
-        // Recalculate totals if quantity or price changed
-        const boxes = data.boxes !== undefined ? data.boxes : order.boxes
-        const pieces = data.pieces !== undefined ? data.pieces : order.pieces
-        const sellingPricePerBox = data.sellingPricePerBox !== undefined ? data.sellingPricePerBox : order.sellingPricePerBox
-        const sellingPricePerPiece = data.sellingPricePerPiece !== undefined ? data.sellingPricePerPiece : order.sellingPricePerPiece
-        const costPerBox = data.costPerBox !== undefined ? data.costPerBox : order.costPerBox
-        const costPerPiece = data.costPerPiece !== undefined ? data.costPerPiece : order.costPerPiece
-        
-        updated.totalSellingPrice = (boxes || 0) * (sellingPricePerBox || 0) + (pieces || 0) * (sellingPricePerPiece || 0)
-        updated.totalCost = (boxes || 0) * (costPerBox || 0) + (pieces || 0) * (costPerPiece || 0)
-        updated.profit = updated.totalSellingPrice - updated.totalCost
+        // Recalculate totals if quantity changed
+        if (data.boxes !== undefined || data.pieces !== undefined) {
+          const boxes = data.boxes !== undefined ? data.boxes : order.boxes
+          const pieces = data.pieces !== undefined ? data.pieces : order.pieces
+          const sellingPricePerBox = order.sellingPricePerBox || 0
+          const sellingPricePerPiece = order.sellingPricePerPiece || 0
+          const costPerBox = order.costPerBox || 0
+          const costPerPiece = order.costPerPiece || 0
+          
+          updated.totalSellingPrice = (boxes || 0) * sellingPricePerBox + (pieces || 0) * sellingPricePerPiece
+          updated.totalCost = (boxes || 0) * costPerBox + (pieces || 0) * costPerPiece
+          updated.profit = updated.totalSellingPrice - updated.totalCost
+        }
         return updated
       }
       return order
@@ -109,12 +132,6 @@ export const BreadOrderProvider = ({ children }) => {
   }
 
   const deleteOrder = (id) => {
-    // Restore inventory before soft delete
-    const order = orders.find(o => o.id === id)
-    if (order && !order.isDeleted) {
-      restoreInventory(order.productId, order.boxes || 0, order.pieces || 0)
-    }
-    
     setOrders(prev => prev.map(order =>
       order.id === id
         ? { ...order, isDeleted: true, deletedAt: new Date().toISOString() }
@@ -124,12 +141,6 @@ export const BreadOrderProvider = ({ children }) => {
   }
 
   const restoreOrder = (id) => {
-    // Deduct inventory again when restoring
-    const order = orders.find(o => o.id === id)
-    if (order && order.isDeleted) {
-      deductInventory(order.productId, order.boxes || 0, order.pieces || 0)
-    }
-    
     setOrders(prev => prev.map(order =>
       order.id === id
         ? { ...order, isDeleted: false, deletedAt: null }
@@ -146,16 +157,12 @@ export const BreadOrderProvider = ({ children }) => {
   const updateOrderStatus = (id, status) => {
     setOrders(prev => prev.map(order => {
       if (order.id === id) {
-        // If status is being updated to completed (paid)
         if (status === 'completed' && order.status !== 'completed') {
           showNotification(`Order ${order.transactionNumber} marked as paid!`, 'success')
         }
-        
-        // If status is being updated to delivered
         if (status === 'delivered' && order.status !== 'delivered') {
           showNotification(`Order ${order.transactionNumber} delivered!`, 'success')
         }
-        
         return { ...order, status, updatedAt: new Date().toISOString() }
       }
       return order
