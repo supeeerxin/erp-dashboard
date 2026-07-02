@@ -16,7 +16,6 @@ import ProtectedRoute from './components/common/ProtectedRoute'
 import Layout from './components/layout/Layout'
 import LoadingSkeleton from './components/common/LoadingSkeleton'
 
-// Lazy load pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const RiceCredit = lazy(() => import('./pages/RiceCredit'))
 const CashLoans = lazy(() => import('./pages/CashLoans'))
@@ -38,15 +37,15 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <CustomerProvider>
-            <RiceCreditProvider>
-              <CashLoanProvider>
-                <BreadProductProvider>
-                  <BreadOrderProvider>
-                    <IncomeProvider>
-                      <ExpenseProvider>
-                        <PayableProvider>
-                          <AuditProvider>
+          <AuditProvider>
+            <CustomerProvider>
+              <RiceCreditProvider>
+                <CashLoanProvider>
+                  <BreadProductProvider>
+                    <BreadOrderProvider>
+                      <IncomeProvider>
+                        <ExpenseProvider>
+                          <PayableProvider>
                             <Router>
                               <Suspense fallback={<LoadingSkeleton />}>
                                 <Routes>
@@ -71,15 +70,15 @@ function App() {
                                 </Routes>
                               </Suspense>
                             </Router>
-                          </AuditProvider>
-                        </PayableProvider>
-                      </ExpenseProvider>
-                    </IncomeProvider>
-                  </BreadOrderProvider>
-                </BreadProductProvider>
-              </CashLoanProvider>
-            </RiceCreditProvider>
-          </CustomerProvider>
+                          </PayableProvider>
+                        </ExpenseProvider>
+                      </IncomeProvider>
+                    </BreadOrderProvider>
+                  </BreadProductProvider>
+                </CashLoanProvider>
+              </RiceCreditProvider>
+            </CustomerProvider>
+          </AuditProvider>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
