@@ -79,6 +79,14 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
         pricePerBox: product.pricePerBox || '',
         pricePerPiece: product.pricePerPiece || ''
       }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        productId: '',
+        productName: '',
+        pricePerBox: '',
+        pricePerPiece: ''
+      }))
     }
   }
 
@@ -110,6 +118,8 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
   const pricePerBox = parseFloat(formData.pricePerBox) || 0
   const pricePerPiece = parseFloat(formData.pricePerPiece) || 0
   const total = (boxes * pricePerBox) + (pieces * pricePerPiece)
+  
+  const selectedProduct = products.find(p => p.id === parseInt(formData.productId))
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -158,6 +168,18 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
                 </option>
               ))}
             </select>
+            
+            {selectedProduct && (
+              <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
+                <p className="text-gray-600 dark:text-gray-400">
+                  Box: <span className="font-medium text-primary-500">₱{selectedProduct.pricePerBox.toFixed(2)}</span>
+                  <span className="text-gray-400 ml-1">({selectedProduct.piecesPerBox || 24} pcs/box)</span>
+                </p>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Per piece: <span className="font-medium text-primary-500">₱{selectedProduct.pricePerPiece.toFixed(2)}</span>
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
