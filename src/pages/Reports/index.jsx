@@ -1,11 +1,16 @@
 import React, { useState, useMemo } from 'react'
-import { BarChart3, Download, Printer, FileSpreadsheet, TrendingUp, TrendingDown, DollarSign, Users, Package, CreditCard, Calendar, Filter } from 'lucide-react'
+import { 
+  BarChart3, Download, Printer, FileSpreadsheet, TrendingUp, TrendingDown, 
+  DollarSign, Users, Package, CreditCard, Calendar, Filter, AlertCircle,
+  Building, Receipt
+} from 'lucide-react'
 import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useCashLoans } from '../../context/CashLoanContext'
 import { useBreadOrders } from '../../context/BreadOrderContext'
 import { useIncome } from '../../context/IncomeContext'
 import { useExpenses } from '../../context/ExpenseContext'
 import { useCustomers } from '../../context/CustomerContext'
+import { usePayables } from '../../context/PayableContext'
 import { useNotification } from '../../context/NotificationContext'
 import {
   Chart as ChartJS,
@@ -47,6 +52,7 @@ const Reports = () => {
   const { incomes } = useIncome()
   const { expenses } = useExpenses()
   const { customers } = useCustomers()
+  const { payables } = usePayables()
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -59,6 +65,20 @@ const Reports = () => {
     const totalRevenue = totalRiceCredit + totalBreadOrders + totalCashLoans
     const netProfit = (totalRevenue + totalIncome) - totalExpenses
 
+    // Payables calculations
+    const totalPayables = payables?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+    const totalPaidPayables = payables?.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+    const totalUnpaidPayables = payables?.filter(p => p.status !== 'paid').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+    const overduePayables = payables?.filter(p => p.status === 'overdue').length || 0
+    const unpaidCount = payables?.filter(p => p.status !== 'paid').length || 0
+
+    // Payables by category
+    const payablesByCategory = payables?.reduce((acc, p) => {
+      const category = p.category || 'Other'
+      acc[category] = (acc[category] || 0) + (p.amount || 0)
+      return acc
+    }, {}) || {}
+
     return {
       totalRevenue,
       totalIncome,
@@ -70,9 +90,16 @@ const Reports = () => {
       totalCustomers: customers?.length || 0,
       activeLoans: cashLoans?.filter(l => l.status === 'active').length || 0,
       completedOrders: breadOrders?.filter(o => o.status === 'completed').length || 0,
-      overdueCount: cashLoans?.filter(l => l.status === 'overdue').length || 0
+      overdueCount: cashLoans?.filter(l => l.status === 'overdue').length || 0,
+      // Payables
+      totalPayables,
+      totalPaidPayables,
+      totalUnpaidPayables,
+      overduePayables,
+      unpaidCount,
+      payablesByCategory
     }
-  }, [riceCredits, breadOrders, cashLoans, incomes, expenses, customers])
+  }, [riceCredits, breadOrders, cashLoans, incomes, expenses, customers, payables])
 
   // Prepare chart data
   const chartOptions = {
@@ -146,6 +173,41 @@ const Reports = () => {
     ]
   }
 
+  // Payables chart data
+  const payablesChartData = {
+    labels: ['Paid', 'Unpaid', 'Overdue'],
+    datasets: [
+      {
+        label: 'Payables',
+        data: [totals.totalPaidPayables, totals.totalUnpaidPayables, totals.totalUnpaidPayables],
+        backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(234, 179, 8, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+        borderColor: ['#22c55e', '#eab308', '#ef4444'],
+        borderWidth: 2
+      }
+    ]
+  }
+
+  // Payables by category chart
+  const payablesCategoryData = {
+    labels: Object.keys(totals.payablesByCategory),
+    datasets: [
+      {
+        label: 'By Category',
+        data: Object.values(totals.payablesByCategory),
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(234, 179, 8, 0.8)',
+          'rgba(34, 197, 94, 0.8)',
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(139, 92, 246, 0.8)',
+          'rgba(236, 72, 153, 0.8)'
+        ],
+        borderColor: ['#3b82f6', '#eab308', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899'],
+        borderWidth: 2
+      }
+    ]
+  }
+
   const handleExportCSV = () => {
     const data = [
       ['Report Type', 'Amount'],
@@ -158,7 +220,13 @@ const Reports = () => {
       ['Cash Loans', totals.totalCashLoans],
       ['Total Customers', totals.totalCustomers],
       ['Active Loans', totals.activeLoans],
-      ['Overdue Loans', totals.overdueCount]
+      ['Overdue Loans', totals.overdueCount],
+      ['--- Payables ---', ''],
+      ['Total Payables', totals.totalPayables],
+      ['Paid Payables', totals.totalPaidPayables],
+      ['Unpaid Payables', totals.totalUnpaidPayables],
+      ['Overdue Payables', totals.overduePayables],
+      ['Unpaid Count', totals.unpaidCount]
     ]
 
     let csv = data.map(row => row.join(',')).join('\n')
@@ -192,6 +260,13 @@ const Reports = () => {
       color: 'bg-green-500'
     },
     {
+      id: 'payables',
+      title: 'Payables Report',
+      description: 'Bills, loans, and obligations',
+      icon: Receipt,
+      color: 'bg-red-500'
+    },
+    {
       id: 'customer',
       title: 'Customer Report',
       description: 'Customer activity and trends',
@@ -199,18 +274,11 @@ const Reports = () => {
       color: 'bg-purple-500'
     },
     {
-      id: 'inventory',
-      title: 'Inventory Report',
-      description: 'Bread stock and product status',
-      icon: Package,
-      color: 'bg-yellow-500'
-    },
-    {
       id: 'loan',
       title: 'Loan Report',
       description: 'Credit and loan summaries',
       icon: CreditCard,
-      color: 'bg-red-500'
+      color: 'bg-orange-500'
     }
   ]
 
@@ -274,6 +342,96 @@ const Reports = () => {
           </div>
         )
 
+      case 'payables':
+        return (
+          <div className="space-y-4">
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Payables</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">₱{totals.totalPayables.toLocaleString()}</p>
+              </div>
+              <div className="card p-4 bg-green-50 dark:bg-green-900/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Paid</p>
+                <p className="text-xl font-bold text-green-600">₱{totals.totalPaidPayables.toLocaleString()}</p>
+              </div>
+              <div className="card p-4 bg-yellow-50 dark:bg-yellow-900/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Unpaid</p>
+                <p className="text-xl font-bold text-yellow-600">₱{totals.totalUnpaidPayables.toLocaleString()}</p>
+                <p className="text-xs text-gray-500">{totals.unpaidCount} items</p>
+              </div>
+              <div className="card p-4 bg-red-50 dark:bg-red-900/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Overdue</p>
+                <p className="text-xl font-bold text-red-600">{totals.overduePayables}</p>
+                <p className="text-xs text-gray-500">items overdue</p>
+              </div>
+            </div>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="card">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Payables Status</h4>
+                <div className="h-64">
+                  <Bar data={payablesChartData} options={chartOptions} />
+                </div>
+              </div>
+              <div className="card">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">By Category</h4>
+                <div className="h-64">
+                  {Object.keys(totals.payablesByCategory).length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
+                      <p className="text-sm">No payables data</p>
+                    </div>
+                  ) : (
+                    <Bar data={payablesCategoryData} options={chartOptions} />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Unpaid Payables List */}
+            <div className="card">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                Unpaid Payables ({totals.unpaidCount})
+              </h4>
+              {payables?.filter(p => p.status !== 'paid').length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">All payables are paid! 🎉</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Name</th>
+                        <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Category</th>
+                        <th className="text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Amount</th>
+                        <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Due Date</th>
+                        <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payables?.filter(p => p.status !== 'paid').map(p => (
+                        <tr key={p.id} className="border-b border-gray-100 dark:border-gray-800">
+                          <td className="py-2 text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
+                          <td className="py-2 text-sm text-gray-600 dark:text-gray-400">{p.category}</td>
+                          <td className="py-2 text-sm text-right font-medium text-red-600">₱{p.amount.toLocaleString()}</td>
+                          <td className="py-2 text-sm text-gray-500 dark:text-gray-400">
+                            {p.dueDate ? new Date(p.dueDate).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="py-2 text-sm">
+                            <span className={`badge ${p.status === 'overdue' ? 'badge-danger' : 'badge-warning'}`}>
+                              {p.status === 'overdue' ? 'Overdue' : 'Unpaid'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
       case 'customer':
         return (
           <div className="space-y-4">
@@ -297,21 +455,6 @@ const Reports = () => {
                 <p className="empty-state-text">Customer Report</p>
                 <p className="empty-state-subtext">
                   Detailed customer analytics coming soon
-                </p>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'inventory':
-        return (
-          <div className="space-y-4">
-            <div className="card">
-              <div className="empty-state">
-                <Package className="empty-state-icon" />
-                <p className="empty-state-text">Inventory Report</p>
-                <p className="empty-state-subtext">
-                  Bread inventory and stock level report
                 </p>
               </div>
             </div>
