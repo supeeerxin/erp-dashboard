@@ -1,61 +1,411 @@
-import React from 'react'
-import { BarChart3, Download, Printer, FileSpreadsheet } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { BarChart3, Download, Printer, FileSpreadsheet, TrendingUp, TrendingDown, DollarSign, Users, Package, CreditCard, Calendar, Filter } from 'lucide-react'
+import { useRiceCredit } from '../../context/RiceCreditContext'
+import { useCashLoans } from '../../context/CashLoanContext'
+import { useBreadOrders } from '../../context/BreadOrderContext'
+import { useIncome } from '../../context/IncomeContext'
+import { useExpenses } from '../../context/ExpenseContext'
+import { useCustomers } from '../../context/CustomerContext'
+import { useNotification } from '../../context/NotificationContext'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement
+} from 'chart.js'
+import { Bar, Doughnut, Line } from 'react-chartjs-2'
+import { useTheme } from '../../context/ThemeContext'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement
+)
 
 const Reports = () => {
+  const { darkMode } = useTheme()
+  const { showNotification } = useNotification()
+  const [activeReport, setActiveReport] = useState('sales')
+  const [dateRange, setDateRange] = useState({ start: '', end: '' })
+
+  // Get data from contexts
+  const { transactions: riceCredits } = useRiceCredit()
+  const { loans: cashLoans } = useCashLoans()
+  const { orders: breadOrders } = useBreadOrders()
+  const { incomes } = useIncome()
+  const { expenses } = useExpenses()
+  const { customers } = useCustomers()
+
+  // Calculate totals
+  const totals = useMemo(() => {
+    const totalRiceCredit = riceCredits?.reduce((sum, t) => sum + (t.totalSellingPrice || t.amount || 0), 0) || 0
+    const totalBreadOrders = breadOrders?.reduce((sum, o) => sum + (o.totalSellingPrice || 0), 0) || 0
+    const totalCashLoans = cashLoans?.reduce((sum, l) => sum + (l.totalPayable || l.principal || 0), 0) || 0
+    const totalIncome = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
+    const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+    
+    const totalRevenue = totalRiceCredit + totalBreadOrders + totalCashLoans
+    const netProfit = (totalRevenue + totalIncome) - totalExpenses
+
+    return {
+      totalRevenue,
+      totalIncome,
+      totalExpenses,
+      netProfit,
+      totalRiceCredit,
+      totalBreadOrders,
+      totalCashLoans,
+      totalCustomers: customers?.length || 0,
+      activeLoans: cashLoans?.filter(l => l.status === 'active').length || 0,
+      completedOrders: breadOrders?.filter(o => o.status === 'completed').length || 0,
+      overdueCount: cashLoans?.filter(l => l.status === 'overdue').length || 0
+    }
+  }, [riceCredits, breadOrders, cashLoans, incomes, expenses, customers])
+
+  // Prepare chart data
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: darkMode ? '#e5e7eb' : '#374151',
+          usePointStyle: true,
+          padding: 20
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: darkMode ? '#374151' : '#e5e7eb'
+        },
+        ticks: {
+          color: darkMode ? '#9ca3af' : '#6b7280',
+          callback: function(value) {
+            return '₱' + value.toLocaleString()
+          }
+        }
+      },
+      x: {
+        grid: {
+          color: darkMode ? '#374151' : '#e5e7eb'
+        },
+        ticks: {
+          color: darkMode ? '#9ca3af' : '#6b7280'
+        }
+      }
+    }
+  }
+
+  const revenueData = {
+    labels: ['Rice Credit', 'Bread Orders', 'Cash Loans', 'Income'],
+    datasets: [
+      {
+        label: 'Revenue',
+        data: [totals.totalRiceCredit, totals.totalBreadOrders, totals.totalCashLoans, totals.totalIncome],
+        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(234, 179, 8, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(139, 92, 246, 0.8)'],
+        borderColor: ['#3b82f6', '#eab308', '#22c55e', '#8b5cf6'],
+        borderWidth: 2
+      }
+    ]
+  }
+
+  const profitData = {
+    labels: ['Revenue', 'Expenses', 'Net Profit'],
+    datasets: [
+      {
+        label: 'Financial Summary',
+        data: [totals.totalRevenue + totals.totalIncome, totals.totalExpenses, totals.netProfit],
+        backgroundColor: [
+          'rgba(34, 197, 94, 0.8)',
+          'rgba(239, 68, 68, 0.8)',
+          totals.netProfit >= 0 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)'
+        ],
+        borderColor: [
+          '#22c55e',
+          '#ef4444',
+          totals.netProfit >= 0 ? '#22c55e' : '#ef4444'
+        ],
+        borderWidth: 2
+      }
+    ]
+  }
+
+  const handleExportCSV = () => {
+    const data = [
+      ['Report Type', 'Amount'],
+      ['Total Revenue', totals.totalRevenue],
+      ['Total Income', totals.totalIncome],
+      ['Total Expenses', totals.totalExpenses],
+      ['Net Profit', totals.netProfit],
+      ['Rice Credit Sales', totals.totalRiceCredit],
+      ['Bread Order Sales', totals.totalBreadOrders],
+      ['Cash Loans', totals.totalCashLoans],
+      ['Total Customers', totals.totalCustomers],
+      ['Active Loans', totals.activeLoans],
+      ['Overdue Loans', totals.overdueCount]
+    ]
+
+    let csv = data.map(row => row.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `financial-report-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    showNotification('Report exported successfully!', 'success')
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const reportCards = [
+    {
+      id: 'sales',
+      title: 'Sales Report',
+      description: 'View all sales transactions',
+      icon: TrendingUp,
+      color: 'bg-blue-500'
+    },
+    {
+      id: 'financial',
+      title: 'Financial Report',
+      description: 'Income and expense summary',
+      icon: DollarSign,
+      color: 'bg-green-500'
+    },
+    {
+      id: 'customer',
+      title: 'Customer Report',
+      description: 'Customer activity and trends',
+      icon: Users,
+      color: 'bg-purple-500'
+    },
+    {
+      id: 'inventory',
+      title: 'Inventory Report',
+      description: 'Bread stock and product status',
+      icon: Package,
+      color: 'bg-yellow-500'
+    },
+    {
+      id: 'loan',
+      title: 'Loan Report',
+      description: 'Credit and loan summaries',
+      icon: CreditCard,
+      color: 'bg-red-500'
+    }
+  ]
+
+  const renderReportContent = () => {
+    switch (activeReport) {
+      case 'sales':
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Rice Credit</p>
+                <p className="text-xl font-bold text-blue-600">₱{totals.totalRiceCredit.toLocaleString()}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Bread Orders</p>
+                <p className="text-xl font-bold text-yellow-600">₱{totals.totalBreadOrders.toLocaleString()}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Cash Loans</p>
+                <p className="text-xl font-bold text-green-600">₱{totals.totalCashLoans.toLocaleString()}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
+                <p className="text-xl font-bold text-primary-500">₱{totals.totalRevenue.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="card">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Revenue Breakdown</h4>
+              <div className="h-64">
+                <Bar data={revenueData} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'financial':
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="card p-4 bg-green-50 dark:bg-green-900/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Income</p>
+                <p className="text-xl font-bold text-green-600">₱{(totals.totalRevenue + totals.totalIncome).toLocaleString()}</p>
+              </div>
+              <div className="card p-4 bg-red-50 dark:bg-red-900/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</p>
+                <p className="text-xl font-bold text-red-600">₱{totals.totalExpenses.toLocaleString()}</p>
+              </div>
+              <div className={`card p-4 ${totals.netProfit >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Net Profit</p>
+                <p className={`text-xl font-bold ${totals.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ₱{totals.netProfit.toLocaleString()}
+                </p>
+              </div>
+            </div>
+            <div className="card">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Profit Summary</h4>
+              <div className="h-64">
+                <Bar data={profitData} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'customer':
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Customers</p>
+                <p className="text-xl font-bold text-purple-600">{totals.totalCustomers}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Active Loans</p>
+                <p className="text-xl font-bold text-blue-600">{totals.activeLoans}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Completed Orders</p>
+                <p className="text-xl font-bold text-green-600">{totals.completedOrders}</p>
+              </div>
+            </div>
+            <div className="card">
+              <div className="empty-state">
+                <Users className="empty-state-icon" />
+                <p className="empty-state-text">Customer Report</p>
+                <p className="empty-state-subtext">
+                  Detailed customer analytics coming soon
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'inventory':
+        return (
+          <div className="space-y-4">
+            <div className="card">
+              <div className="empty-state">
+                <Package className="empty-state-icon" />
+                <p className="empty-state-text">Inventory Report</p>
+                <p className="empty-state-subtext">
+                  Bread inventory and stock level report
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'loan':
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Active Loans</p>
+                <p className="text-xl font-bold text-blue-600">{totals.activeLoans}</p>
+              </div>
+              <div className="card p-4 bg-red-50 dark:bg-red-900/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Overdue Loans</p>
+                <p className="text-xl font-bold text-red-600">{totals.overdueCount}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Loan Amount</p>
+                <p className="text-xl font-bold text-primary-500">₱{totals.totalCashLoans.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="card">
+              <div className="empty-state">
+                <CreditCard className="empty-state-icon" />
+                <p className="empty-state-text">Loan Report</p>
+                <p className="empty-state-subtext">
+                  Detailed loan analytics coming soon
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+
+      default:
+        return null
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Generate and view business reports</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Generate and view business reports
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="btn-secondary flex items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            className="btn-secondary flex items-center gap-2"
+          >
             <FileSpreadsheet className="w-4 h-4" /> Export CSV
           </button>
-          <button className="btn-secondary flex items-center gap-2">
+          <button
+            onClick={handlePrint}
+            className="btn-secondary flex items-center gap-2"
+          >
             <Printer className="w-4 h-4" /> Print
           </button>
         </div>
       </div>
 
       {/* Report Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[
-          { title: 'Sales Report', description: 'View all sales transactions', icon: BarChart3 },
-          { title: 'Financial Report', description: 'Income and expense summary', icon: BarChart3 },
-          { title: 'Customer Report', description: 'Customer activity and trends', icon: BarChart3 },
-          { title: 'Inventory Report', description: 'Stock and product status', icon: BarChart3 },
-          { title: 'Loan Report', description: 'Credit and loan summaries', icon: BarChart3 },
-          { title: 'Tax Report', description: 'Tax calculations and filings', icon: BarChart3 }
-        ].map((report, index) => (
-          <div key={index} className="card card-hover cursor-pointer">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-xl">
-                <report.icon className="w-6 h-6 text-primary-500" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {reportCards.map((report) => (
+          <button
+            key={report.id}
+            onClick={() => setActiveReport(report.id)}
+            className={`card card-hover text-left transition-all ${activeReport === report.id ? 'ring-2 ring-primary-500 border-primary-500' : ''}`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg ${report.color} text-white`}>
+                <report.icon className="w-4 h-4" />
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 dark:text-white">{report.title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{report.description}</p>
-                <button className="text-sm text-primary-500 hover:text-primary-600 font-medium mt-2 inline-flex items-center gap-1">
-                  Generate Report <Download className="w-3 h-3" />
-                </button>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                  {report.title}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {report.description}
+                </p>
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
+      {/* Report Content */}
       <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Reports</h3>
-          <button className="text-sm text-primary-500 hover:text-primary-600 font-medium">View All</button>
-        </div>
-        <div className="empty-state">
-          <BarChart3 className="empty-state-icon" />
-          <p className="empty-state-text">No reports generated yet</p>
-          <p className="empty-state-subtext">Generate your first report to see data here</p>
-        </div>
+        {renderReportContent()}
       </div>
     </div>
   )
