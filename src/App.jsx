@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
@@ -17,22 +17,48 @@ import Layout from './components/layout/Layout'
 import LoadingSkeleton from './components/common/LoadingSkeleton'
 
 // ============================================
-// SUPABASE DIRECTLY IN APP.JSX
+// SUPABASE - Lazy initialization
 // ============================================
-import { createClient } from '@supabase/supabase-js'
+let supabaseInstance = null
+let supabaseInitialized = false
 
-const supabaseUrl = 'https://tgdeodxkdymhezfdfncm.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnZGVvZHhrZHltaGV6ZmRmbmNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NzQzNDUsImV4cCI6MjA5ODU1MDM0NX0.jWoP7wUymhyKcVlcVRgJrB1WULAw352ITcqcqRs2OQQ'
+const getSupabase = async () => {
+  if (supabaseInitialized && supabaseInstance) {
+    return supabaseInstance
+  }
 
-console.log('🔑 Supabase URL:', supabaseUrl)
-console.log('🔑 Supabase Key exists:', !!supabaseKey)
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
+  try {
+    const { createClient } = await import('@supabase/supabase-js')
+    
+    const supabaseUrl = 'https://tgdeodxkdymhezfdfncm.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnZGVvZHhrZHltaGV6ZmRmbmNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NzQzNDUsImV4cCI6MjA5ODU1MDM0NX0.jWoP7wUymhyKcVlcVRgJrB1WULAw352ITcqcqRs2OQQ'
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials')
+    }
+    
+    supabaseInstance = createClient(supabaseUrl, supabaseKey)
+    supabaseInitialized = true
+    
+    console.log('✅ Supabase initialized successfully!')
+    return supabaseInstance
+  } catch (error) {
+    console.error('❌ Failed to initialize Supabase:', error)
+    return null
+  }
+}
 
 // Test function
 window.testSupabase = async function() {
   try {
     console.log('🔍 Testing Supabase...')
+    const supabase = await getSupabase()
+    
+    if (!supabase) {
+      console.error('❌ Supabase not available')
+      return false
+    }
+    
     const { data, error } = await supabase
       .from('customers')
       .select('count', { count: 'exact', head: true })
@@ -48,8 +74,6 @@ window.testSupabase = async function() {
     return false
   }
 }
-
-console.log('✅ Supabase initialized!')
 // ============================================
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -69,6 +93,11 @@ const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 function App() {
+  // Initialize Supabase on mount
+  useEffect(() => {
+    getSupabase().catch(console.error)
+  }, [])
+
   return (
     <ThemeProvider>
       <AuthProvider>
