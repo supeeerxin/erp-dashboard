@@ -204,7 +204,9 @@ const CashLoans = () => {
                   <th className="table-header">Customer</th>
                   <th className="table-header text-right">Principal</th>
                   <th className="table-header text-right">Interest</th>
+                  <th className="table-header">Due Date</th>
                   <th className="table-header text-right">Total</th>
+                  
                   <th className="table-header text-right">Paid</th>
                   <th className="table-header text-right">Balance</th>
                   <th className="table-header">Status</th>
@@ -231,6 +233,9 @@ const CashLoans = () => {
                       <td className="table-cell text-right text-yellow-600 dark:text-yellow-400">
                         ₱{loan.interestAmount.toLocaleString()}
                       </td>
+                      <td className="table-cell text-sm">
+  {loan.dueDate ? new Date(loan.dueDate).toLocaleDateString() : 'N/A'}
+</td>
                       <td className="table-cell text-right font-medium text-primary-500">
                         ₱{loan.totalPayable.toLocaleString()}
                       </td>
