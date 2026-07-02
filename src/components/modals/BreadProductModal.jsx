@@ -5,6 +5,7 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
   const [formData, setFormData] = useState({
     name: '',
     pricePerBox: '',
+    piecesPerBox: '24',
     pricePerPiece: ''
   })
 
@@ -13,12 +14,14 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
       setFormData({
         name: product.name || '',
         pricePerBox: product.pricePerBox || '',
+        piecesPerBox: product.piecesPerBox || '24',
         pricePerPiece: product.pricePerPiece || ''
       })
     } else {
       setFormData({
         name: '',
         pricePerBox: '',
+        piecesPerBox: '24',
         pricePerPiece: ''
       })
     }
@@ -26,7 +29,20 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value }
+      
+      // Auto-compute price per piece when pricePerBox or piecesPerBox changes
+      if (name === 'pricePerBox' || name === 'piecesPerBox') {
+        const priceBox = parseFloat(name === 'pricePerBox' ? value : prev.pricePerBox) || 0
+        const pieces = parseInt(name === 'piecesPerBox' ? value : prev.piecesPerBox) || 1
+        if (priceBox > 0 && pieces > 0) {
+          newData.pricePerPiece = (priceBox / pieces).toFixed(2)
+        }
+      }
+      
+      return newData
+    })
   }
 
   const handleSubmit = (e) => {
@@ -35,15 +51,24 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
       alert('Please enter product name')
       return
     }
+    if (!formData.pricePerBox || parseFloat(formData.pricePerBox) <= 0) {
+      alert('Please enter price per box')
+      return
+    }
     onSave({
       name: formData.name.trim(),
       pricePerBox: parseFloat(formData.pricePerBox) || 0,
+      piecesPerBox: parseInt(formData.piecesPerBox) || 24,
       pricePerPiece: parseFloat(formData.pricePerPiece) || 0
     })
     onClose()
   }
 
   if (!isOpen) return null
+
+  const priceBox = parseFloat(formData.pricePerBox) || 0
+  const pieces = parseInt(formData.piecesPerBox) || 1
+  const computedPricePerPiece = priceBox > 0 && pieces > 0 ? (priceBox / pieces).toFixed(2) : 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -75,7 +100,7 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
           </div>
 
           <div>
-            <label className="label">Price per Box (₱)</label>
+            <label className="label">Price per Box (₱) *</label>
             <input
               type="number"
               name="pricePerBox"
@@ -85,21 +110,38 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
               placeholder="0.00"
               min="0"
               step="0.01"
+              required
             />
           </div>
 
           <div>
-            <label className="label">Price per Piece (₱)</label>
+            <label className="label">Pieces per Box</label>
             <input
               type="number"
-              name="pricePerPiece"
-              value={formData.pricePerPiece}
+              name="piecesPerBox"
+              value={formData.piecesPerBox}
               onChange={handleChange}
               className="input-field"
-              placeholder="0.00"
-              min="0"
-              step="0.01"
+              placeholder="24"
+              min="1"
+              step="1"
             />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Default: 24 pieces per box
+            </p>
+          </div>
+
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Price per Piece: <span className="font-bold text-primary-500">
+                ₱{formData.pricePerPiece || computedPricePerPiece}
+              </span>
+            </p>
+            {priceBox > 0 && pieces > 0 && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {priceBox.toFixed(2)} ÷ {pieces} = ₱{computedPricePerPiece} per piece
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
