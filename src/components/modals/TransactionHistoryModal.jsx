@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, Calendar, Clock, CheckCircle, AlertCircle, Printer, Download } from 'lucide-react'
+import { X, Calendar, Clock, CheckCircle, AlertCircle, Printer, Download, Hash } from 'lucide-react'
 import { useCustomers } from '../../context/CustomerContext'
 
 const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
@@ -55,24 +55,23 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
   }
 
   const handleExport = () => {
-    // Create CSV data
-    let csv = 'Date,Time,Type,Amount,Balance\n'
+    let csv = 'Transaction Number,Date,Time,Type,Amount,Balance\n'
     let runningBalance = transaction.amount
     
-    csv += `Transaction #${transaction.id}\n`
+    csv += `Transaction #${transaction.transactionNumber || transaction.id}\n`
     csv += `Customer: ${customer?.name || transaction.customerName}\n`
     csv += `Total Amount: ₱${transaction.amount.toFixed(2)}\n\n`
     
     transaction.payments?.forEach(p => {
       runningBalance -= p.amount
-      csv += `${formatDate(p.date)},${formatTime(p.date)},${getPaymentTypeLabel(p.type)},₱${p.amount.toFixed(2)},₱${runningBalance.toFixed(2)}\n`
+      csv += `${transaction.transactionNumber || transaction.id},${formatDate(p.date)},${formatTime(p.date)},${getPaymentTypeLabel(p.type)},₱${p.amount.toFixed(2)},₱${runningBalance.toFixed(2)}\n`
     })
     
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `payment-history-${transaction.id}.csv`
+    a.download = `payment-history-${transaction.transactionNumber || transaction.id}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -86,9 +85,12 @@ const TransactionHistoryModal = ({ isOpen, onClose, transaction }) => {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">
               Payment History
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Transaction #{transaction.id.toString().slice(-6)}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <Hash className="w-4 h-4 text-gray-400" />
+              <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                {transaction.transactionNumber || `TRX-${transaction.id.toString().slice(-6)}`}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
