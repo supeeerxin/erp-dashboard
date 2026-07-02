@@ -4,25 +4,37 @@ import { X } from 'lucide-react'
 const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
   const [formData, setFormData] = useState({
     name: '',
-    pricePerBox: '',
+    sellingPricePerBox: '',
+    sellingPricePerPiece: '',
+    costPerBox: '',
+    costPerPiece: '',
     piecesPerBox: '24',
-    pricePerPiece: ''
+    stockBoxes: '',
+    stockPieces: ''
   })
 
   useEffect(() => {
     if (product) {
       setFormData({
         name: product.name || '',
-        pricePerBox: product.pricePerBox || '',
+        sellingPricePerBox: product.sellingPricePerBox || '',
+        sellingPricePerPiece: product.sellingPricePerPiece || '',
+        costPerBox: product.costPerBox || '',
+        costPerPiece: product.costPerPiece || '',
         piecesPerBox: product.piecesPerBox || '24',
-        pricePerPiece: product.pricePerPiece || ''
+        stockBoxes: product.stockBoxes || '',
+        stockPieces: product.stockPieces || ''
       })
     } else {
       setFormData({
         name: '',
-        pricePerBox: '',
+        sellingPricePerBox: '',
+        sellingPricePerPiece: '',
+        costPerBox: '',
+        costPerPiece: '',
         piecesPerBox: '24',
-        pricePerPiece: ''
+        stockBoxes: '',
+        stockPieces: ''
       })
     }
   }, [product, isOpen])
@@ -32,12 +44,21 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
     setFormData(prev => {
       const newData = { ...prev, [name]: value }
       
-      // Auto-compute price per piece when pricePerBox or piecesPerBox changes
-      if (name === 'pricePerBox' || name === 'piecesPerBox') {
-        const priceBox = parseFloat(name === 'pricePerBox' ? value : prev.pricePerBox) || 0
+      // Auto-compute price per piece when sellingPricePerBox or piecesPerBox changes
+      if (name === 'sellingPricePerBox' || name === 'piecesPerBox') {
+        const priceBox = parseFloat(name === 'sellingPricePerBox' ? value : prev.sellingPricePerBox) || 0
         const pieces = parseInt(name === 'piecesPerBox' ? value : prev.piecesPerBox) || 1
         if (priceBox > 0 && pieces > 0) {
-          newData.pricePerPiece = (priceBox / pieces).toFixed(2)
+          newData.sellingPricePerPiece = (priceBox / pieces).toFixed(2)
+        }
+      }
+      
+      // Auto-compute cost per piece
+      if (name === 'costPerBox' || name === 'piecesPerBox') {
+        const costBox = parseFloat(name === 'costPerBox' ? value : prev.costPerBox) || 0
+        const pieces = parseInt(name === 'piecesPerBox' ? value : prev.piecesPerBox) || 1
+        if (costBox > 0 && pieces > 0) {
+          newData.costPerPiece = (costBox / pieces).toFixed(2)
         }
       }
       
@@ -51,36 +72,29 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
       alert('Please enter product name')
       return
     }
-    if (!formData.pricePerBox || parseFloat(formData.pricePerBox) <= 0) {
-      alert('Please enter price per box')
-      return
-    }
     onSave({
       name: formData.name.trim(),
-      pricePerBox: parseFloat(formData.pricePerBox) || 0,
+      sellingPricePerBox: parseFloat(formData.sellingPricePerBox) || 0,
+      sellingPricePerPiece: parseFloat(formData.sellingPricePerPiece) || 0,
+      costPerBox: parseFloat(formData.costPerBox) || 0,
+      costPerPiece: parseFloat(formData.costPerPiece) || 0,
       piecesPerBox: parseInt(formData.piecesPerBox) || 24,
-      pricePerPiece: parseFloat(formData.pricePerPiece) || 0
+      stockBoxes: parseInt(formData.stockBoxes) || 0,
+      stockPieces: parseInt(formData.stockPieces) || 0
     })
     onClose()
   }
 
   if (!isOpen) return null
 
-  const priceBox = parseFloat(formData.pricePerBox) || 0
-  const pieces = parseInt(formData.piecesPerBox) || 1
-  const computedPricePerPiece = priceBox > 0 && pieces > 0 ? (priceBox / pieces).toFixed(2) : 0
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
             {product ? 'Edit Bread Product' : 'Add Bread Product'}
           </h3>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
@@ -100,21 +114,6 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
           </div>
 
           <div>
-            <label className="label">Price per Box (₱) *</label>
-            <input
-              type="number"
-              name="pricePerBox"
-              value={formData.pricePerBox}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              required
-            />
-          </div>
-
-          <div>
             <label className="label">Pieces per Box</label>
             <input
               type="number"
@@ -126,22 +125,102 @@ const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
               min="1"
               step="1"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Default: 24 pieces per box
-            </p>
           </div>
 
-          <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Price per Piece: <span className="font-bold text-primary-500">
-                ₱{formData.pricePerPiece || computedPricePerPiece}
-              </span>
-            </p>
-            {priceBox > 0 && pieces > 0 && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {priceBox.toFixed(2)} ÷ {pieces} = ₱{computedPricePerPiece} per piece
-              </p>
-            )}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Selling Price</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Per Box (₱)</label>
+                <input
+                  type="number"
+                  name="sellingPricePerBox"
+                  value={formData.sellingPricePerBox}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <label className="label">Per Piece (₱)</label>
+                <input
+                  type="number"
+                  name="sellingPricePerPiece"
+                  value={formData.sellingPricePerPiece}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Puhunan / Cost</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Cost per Box (₱)</label>
+                <input
+                  type="number"
+                  name="costPerBox"
+                  value={formData.costPerBox}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <label className="label">Cost per Piece (₱)</label>
+                <input
+                  type="number"
+                  name="costPerPiece"
+                  value={formData.costPerPiece}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Inventory / Stock</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Stock Boxes</label>
+                <input
+                  type="number"
+                  name="stockBoxes"
+                  value={formData.stockBoxes}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0"
+                  min="0"
+                  step="1"
+                />
+              </div>
+              <div>
+                <label className="label">Stock Pieces</label>
+                <input
+                  type="number"
+                  name="stockPieces"
+                  value={formData.stockPieces}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0"
+                  min="0"
+                  step="1"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
