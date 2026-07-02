@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
-import { useAudit } from './AuditContext'
 
 const CustomerContext = createContext()
 
@@ -16,7 +15,6 @@ export const CustomerProvider = ({ children }) => {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
-  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('customers')
@@ -42,48 +40,39 @@ export const CustomerProvider = ({ children }) => {
     }
     setCustomers(prev => [...prev, newCustomer])
     showNotification('Customer added successfully!', 'success')
-    addLog('Created', 'Customer', `Added customer: ${customerData.name} (${customerData.email || 'No email'})`)
     return newCustomer
   }
 
   const updateCustomer = (id, customerData) => {
-    const customer = getCustomer(id)
     setCustomers(prev => prev.map(customer => 
       customer.id === id && !customer.isDeleted
         ? { ...customer, ...customerData, updatedAt: new Date().toISOString() }
         : customer
     ))
     showNotification('Customer updated successfully!', 'success')
-    addLog('Updated', 'Customer', `Updated customer: ${customer?.name || 'Unknown'} → ${customerData.name || 'Updated'}`)
   }
 
   const deleteCustomer = (id) => {
-    const customer = getCustomer(id)
     setCustomers(prev => prev.map(customer =>
       customer.id === id
         ? { ...customer, isDeleted: true, deletedAt: new Date().toISOString() }
         : customer
     ))
     showNotification('Customer moved to trash!', 'warning')
-    addLog('Deleted', 'Customer', `Soft deleted customer: ${customer?.name || 'Unknown'}`)
   }
 
   const restoreCustomer = (id) => {
-    const customer = getCustomer(id)
     setCustomers(prev => prev.map(customer =>
       customer.id === id
         ? { ...customer, isDeleted: false, deletedAt: null }
         : customer
     ))
     showNotification('Customer restored successfully!', 'success')
-    addLog('Restored', 'Customer', `Restored customer: ${customer?.name || 'Unknown'}`)
   }
 
   const permanentDeleteCustomer = (id) => {
-    const customer = getCustomer(id)
     setCustomers(prev => prev.filter(customer => customer.id !== id))
     showNotification('Customer permanently deleted!', 'error')
-    addLog('Deleted', 'Customer', `Permanently deleted customer: ${customer?.name || 'Unknown'}`)
   }
 
   const getActiveCustomers = () => {
