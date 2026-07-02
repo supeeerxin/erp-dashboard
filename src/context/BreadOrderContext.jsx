@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
-import { useAudit } from './AuditContext'
 import { generateOrderNumber } from '../utils/transactionUtils'
 
 const BreadOrderContext = createContext()
@@ -17,7 +16,6 @@ export const BreadOrderProvider = ({ children }) => {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
-  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('breadOrders')
