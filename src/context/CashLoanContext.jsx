@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 import { generateLoanNumber } from '../utils/transactionUtils'
 import { isAfter, parseISO } from 'date-fns'
 
@@ -17,6 +18,7 @@ export const CashLoanProvider = ({ children }) => {
   const [loans, setLoans] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('cashLoans')
@@ -28,7 +30,6 @@ export const CashLoanProvider = ({ children }) => {
 
   useEffect(() => {
     if (!loading) {
-      // Check for overdue loans
       const updatedLoans = loans.map(loan => {
         if (loan.status === 'active' && loan.dueDate) {
           const dueDate = parseISO(loan.dueDate)
@@ -66,7 +67,6 @@ export const CashLoanProvider = ({ children }) => {
       type: 'downpayment'
     }] : []
 
-    // Auto-compute due date if not provided
     let dueDate = data.dueDate
     if (!dueDate && data.termValue) {
       const today = new Date()
@@ -97,10 +97,12 @@ export const CashLoanProvider = ({ children }) => {
     }
     setLoans(prev => [...prev, newLoan])
     showNotification(`Loan ${newLoan.transactionNumber} created!`, 'success')
+    addLog('Created', 'Cash Loan', `Created loan: ${newLoan.transactionNumber} for ₱${principal} (Interest: ₱${interestAmount}, Total: ₱${totalPayable})`)
     return newLoan
   }
 
   const updateLoan = (id, data) => {
+    const loan = loans.find(l => l.id === id)
     setLoans(prev => prev.map(loan => {
       if (loan.id === id) {
         const updated = { ...loan, ...data, updatedAt: new Date().toISOString() }
@@ -109,29 +111,36 @@ export const CashLoanProvider = ({ children }) => {
       return loan
     }))
     showNotification('Loan updated!', 'success')
+    addLog('Updated', 'Cash Loan', `Updated loan: ${loan?.transactionNumber || 'Unknown'}`)
   }
 
   const deleteLoan = (id) => {
+    const loan = loans.find(l => l.id === id)
     setLoans(prev => prev.map(loan =>
       loan.id === id
         ? { ...loan, isDeleted: true, deletedAt: new Date().toISOString() }
         : loan
     ))
     showNotification('Loan moved to trash', 'warning')
+    addLog('Deleted', 'Cash Loan', `Soft deleted loan: ${loan?.transactionNumber || 'Unknown'}`)
   }
 
   const restoreLoan = (id) => {
+    const loan = loans.find(l => l.id === id)
     setLoans(prev => prev.map(loan =>
       loan.id === id
         ? { ...loan, isDeleted: false, deletedAt: null }
         : loan
     ))
     showNotification('Loan restored!', 'success')
+    addLog('Restored', 'Cash Loan', `Restored loan: ${loan?.transactionNumber || 'Unknown'}`)
   }
 
   const permanentDeleteLoan = (id) => {
+    const loan = loans.find(l => l.id === id)
     setLoans(prev => prev.filter(loan => loan.id !== id))
     showNotification('Loan permanently deleted', 'error')
+    addLog('Deleted', 'Cash Loan', `Permanently deleted loan: ${loan?.transactionNumber || 'Unknown'}`)
   }
 
   const addPayment = (id, amount) => {
@@ -147,6 +156,7 @@ export const CashLoanProvider = ({ children }) => {
             date: new Date().toISOString(),
             type: 'payment'
           }]
+          addLog('Paid', 'Cash Loan', `Payment of ₱${loan.remainingBalance} recorded for ${loan.transactionNumber} (Fully Paid)`)
           return {
             ...loan,
             payments,
@@ -163,6 +173,7 @@ export const CashLoanProvider = ({ children }) => {
           type: 'payment'
         }]
         
+        addLog('Paid', 'Cash Loan', `Payment of ₱${amount} recorded for ${loan.transactionNumber} (Balance: ₱${newBalance})`)
         return {
           ...loan,
           payments,
