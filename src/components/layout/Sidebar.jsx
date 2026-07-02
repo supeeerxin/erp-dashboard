@@ -79,9 +79,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
+              <span className="text-white font-bold text-lg">RX</span>
             </div>
-            <span className="text-lg font-bold text-gray-900 dark:text-white">ERP System</span>
+            <span className="text-lg font-bold text-gray-900 dark:text-white">RX System</span>
           </div>
           <button 
             onClick={() => setIsOpen(false)}
