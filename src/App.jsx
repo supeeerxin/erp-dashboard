@@ -20,31 +20,41 @@ import LoadingSkeleton from './components/common/LoadingSkeleton'
 // SUPABASE - Lazy initialization
 // ============================================
 let supabaseInstance = null
-let supabaseInitialized = false
 
-const getSupabase = async () => {
-  if (supabaseInitialized && supabaseInstance) {
-    return supabaseInstance
+export const getSupabase = () => {
+  if (supabaseInstance) return supabaseInstance
+  
+  const supabaseUrl = 'https://tgdeodxkdymhezfdfncm.supabase.co'
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnZGVvZHhrZHltaGV6ZmRmbmNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NzQzNDUsImV4cCI6MjA5ODU1MDM0NX0.jWoP7wUymhyKcVlcVRgJrB1WULAw352ITcqcqRs2OQQ'
+  
+  // Import dynamically to avoid load issues
+  import('@supabase/supabase-js').then(module => {
+    supabaseInstance = module.createClient(supabaseUrl, supabaseKey)
+    console.log('✅ Supabase initialized!')
+  }).catch(err => {
+    console.error('❌ Failed to load Supabase:', err)
+  })
+  
+  return supabaseInstance
+}
+
+// Test function for console
+window.testSupabase = async function() {
+  const supabase = await getSupabase()
+  if (!supabase) {
+    console.log('⏳ Supabase not ready yet, try again in a moment')
+    return
   }
-
   try {
-    const { createClient } = await import('@supabase/supabase-js')
-    
-    const supabaseUrl = 'https://tgdeodxkdymhezfdfncm.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnZGVvZHhrZHltaGV6ZmRmbmNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NzQzNDUsImV4cCI6MjA5ODU1MDM0NX0.jWoP7wUymhyKcVlcVRgJrB1WULAw352ITcqcqRs2OQQ'
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase credentials')
-    }
-    
-    supabaseInstance = createClient(supabaseUrl, supabaseKey)
-    supabaseInitialized = true
-    
-    console.log('✅ Supabase initialized successfully!')
-    return supabaseInstance
-  } catch (error) {
-    console.error('❌ Failed to initialize Supabase:', error)
-    return null
+    const { data, error } = await supabase
+      .from('customers')
+      .select('count', { count: 'exact', head: true })
+    if (error) throw error
+    console.log('✅ Connected!', data)
+    return true
+  } catch (err) {
+    console.error('❌ Error:', err)
+    return false
   }
 }
 
