@@ -6,7 +6,8 @@ import {
   ShoppingBag, 
   Users, 
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  DollarSign
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -15,13 +16,13 @@ const QuickActions = () => {
 
   const actions = [
     {
-      icon: Plus,
+      icon: Package,
       label: 'New Rice Credit',
       color: 'bg-blue-500',
       path: '/rice-credit'
     },
     {
-      icon: CreditCard,
+      icon: DollarSign,
       label: 'New Cash Loan',
       color: 'bg-green-500',
       path: '/cash-loans'
@@ -43,6 +44,12 @@ const QuickActions = () => {
       label: 'Add Income',
       color: 'bg-indigo-500',
       path: '/income'
+    },
+    {
+      icon: CreditCard,
+      label: 'Add Payable',
+      color: 'bg-red-500',
+      path: '/payables'
     }
   ]
 
@@ -74,9 +81,9 @@ const QuickActions = () => {
 
       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
         <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg p-4 text-white">
-          <p className="text-sm font-medium">Quick Tip</p>
+          <p className="text-sm font-medium">💡 Quick Tip</p>
           <p className="text-xs opacity-90 mt-1">
-            Use the search bar to quickly find customers and transactions.
+            Use the search bar or quick actions to manage your business efficiently.
           </p>
         </div>
       </div>
