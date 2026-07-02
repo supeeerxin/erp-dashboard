@@ -327,17 +327,18 @@ const RiceCredit = () => {
       />
 
       <PaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => {
-          setIsPaymentModalOpen(false)
-          setSelectedTransaction(null)
-        }}
-        onSave={handleRecordPayment}
-        customerName={selectedTransaction ? 
-          getCustomer(selectedTransaction.customerId)?.name || selectedTransaction.customerName : ''
-        }
-        remainingBalance={selectedTransaction?.remainingBalance || 0}
-      />
+  isOpen={isPaymentModalOpen}
+  onClose={() => {
+    setIsPaymentModalOpen(false)
+    setSelectedTransaction(null)
+  }}
+  onSave={handleRecordPayment}
+  customerName={selectedTransaction ? 
+    getCustomer(selectedTransaction.customerId)?.name || selectedTransaction.customerName : ''
+  }
+  remainingBalance={selectedTransaction?.remainingBalance || 0}
+  suggestedAmount={selectedTransaction?.paymentPerGive || 0}
+/>
 
       <TransactionHistoryModal
         isOpen={isHistoryModalOpen}
