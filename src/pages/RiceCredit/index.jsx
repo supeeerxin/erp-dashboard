@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { Package, Plus, Search, Edit2, Trash2, RotateCcw, DollarSign, Archive, TrendingUp, Calendar } from 'lucide-react'
+import { Package, Plus, Search, Edit2, Trash2, RotateCcw, DollarSign, Archive, Eye } from 'lucide-react'
 import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useCustomers } from '../../context/CustomerContext'
 import RiceCreditModal from '../../components/modals/RiceCreditModal'
 import PaymentModal from '../../components/modals/PaymentModal'
+import TransactionHistoryModal from '../../components/modals/TransactionHistoryModal'
 
 const RiceCredit = () => {
   const { 
@@ -23,6 +24,7 @@ const RiceCredit = () => {
   const [showTrash, setShowTrash] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState(null)
   const [selectedTransaction, setSelectedTransaction] = useState(null)
 
@@ -88,21 +90,19 @@ const RiceCredit = () => {
     setSelectedTransaction(null)
   }
 
+  const handleViewHistory = (transaction) => {
+    setSelectedTransaction(transaction)
+    setIsHistoryModalOpen(true)
+  }
+
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setEditingTransaction(null)
   }
 
-  // Calculate total payments including down payment
   const getTotalPayments = (transaction) => {
     const payments = transaction.payments || []
     return payments.reduce((sum, p) => sum + p.amount, 0)
-  }
-
-  // Calculate if fully paid
-  const isFullyPaid = (transaction) => {
-    const totalPaid = getTotalPayments(transaction)
-    return totalPaid >= transaction.amount
   }
 
   return (
@@ -215,7 +215,7 @@ const RiceCredit = () => {
                   const totalPaid = getTotalPayments(transaction)
                   const downPayment = transaction.downPayment || 0
                   const numberOfPayments = transaction.numberOfPayments || 1
-                  const isPaid = isFullyPaid(transaction)
+                  const isPaid = transaction.status === 'completed' || transaction.remainingBalance === 0
                   
                   return (
                     <tr key={transaction.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -246,18 +246,21 @@ const RiceCredit = () => {
                         )}
                       </td>
                       <td className="table-cell">
-                        {isPaid ? (
-                          <span className="badge badge-success">Paid</span>
-                        ) : (
-                          getStatusBadge(transaction.status)
-                        )}
+                        {getStatusBadge(transaction.status)}
                         {transaction.isDeleted && (
                           <span className="badge badge-danger ml-1">Deleted</span>
                         )}
                       </td>
                       <td className="table-cell text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {!transaction.isDeleted && !isPaid && transaction.status !== 'completed' && (
+                          <button
+                            onClick={() => handleViewHistory(transaction)}
+                            className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
+                            title="View History"
+                          >
+                            <Eye className="w-4 h-4 text-blue-500" />
+                          </button>
+                          {!transaction.isDeleted && !isPaid && (
                             <button
                               onClick={() => handlePayment(transaction)}
                               className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
@@ -329,6 +332,15 @@ const RiceCredit = () => {
           getCustomer(selectedTransaction.customerId)?.name || selectedTransaction.customerName : ''
         }
         remainingBalance={selectedTransaction?.remainingBalance || 0}
+      />
+
+      <TransactionHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => {
+          setIsHistoryModalOpen(false)
+          setSelectedTransaction(null)
+        }}
+        transaction={selectedTransaction}
       />
     </div>
   )
