@@ -30,6 +30,7 @@ const Payables = lazy(() => import('./pages/Payables'))
 const AuditLog = lazy(() => import('./pages/AuditLog'))
 const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const DueDates = lazy(() => import('./pages/DueDates'))
 
 function App() {
   return (
@@ -63,6 +64,7 @@ function App() {
                                     <Route path="settings" element={<Settings />} />
                                     <Route path="payables" element={<Payables />} />
                                     <Route path="audit-log" element={<AuditLog />} />
+                                    <Route path="due-dates" element={<DueDates />} />
                                   </Route>
                                   <Route path="*" element={<NotFound />} />
                                 </Routes>
