@@ -38,6 +38,14 @@ export const RiceCreditProvider = ({ children }) => {
     const remainingBalance = totalAmount - downPayment
     const paymentPerGive = numberOfPayments > 1 ? remainingBalance / numberOfPayments : remainingBalance
 
+    // Initialize payments with down payment
+    const initialPayments = downPayment > 0 ? [{
+      id: Date.now(),
+      amount: downPayment,
+      date: new Date().toISOString(),
+      type: 'downpayment'
+    }] : []
+
     const newTransaction = {
       id: Date.now(),
       ...data,
@@ -46,12 +54,7 @@ export const RiceCreditProvider = ({ children }) => {
       paymentPerGive: paymentPerGive,
       remainingBalance: remainingBalance,
       status: remainingBalance <= 0 ? 'completed' : 'active',
-      payments: downPayment > 0 ? [{
-        id: Date.now(),
-        amount: downPayment,
-        date: new Date().toISOString(),
-        type: 'downpayment'
-      }] : [],
+      payments: initialPayments,
       profit: data.amount - (data.cost || 0),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -65,12 +68,34 @@ export const RiceCreditProvider = ({ children }) => {
   const updateTransaction = (id, data) => {
     setTransactions(prev => prev.map(transaction => {
       if (transaction.id === id) {
+        // Recalculate with new data
+        const totalAmount = data.amount || transaction.amount
+        const downPayment = data.downPayment || transaction.downPayment || 0
+        const numberOfPayments = data.numberOfPayments || transaction.numberOfPayments || 1
+        const remainingBalance = totalAmount - downPayment
+        
+        // Keep existing payments, update down payment if changed
+        let payments = transaction.payments || []
+        if (downPayment > 0 && payments.length === 0) {
+          payments = [{
+            id: Date.now(),
+            amount: downPayment,
+            date: new Date().toISOString(),
+            type: 'downpayment'
+          }]
+        }
+
         const updated = { 
           ...transaction, 
-          ...data, 
+          ...data,
+          downPayment: downPayment,
+          numberOfPayments: numberOfPayments,
+          paymentPerGive: numberOfPayments > 1 ? remainingBalance / numberOfPayments : remainingBalance,
+          remainingBalance: remainingBalance,
+          payments: payments,
+          profit: totalAmount - (data.cost || transaction.cost || 0),
           updatedAt: new Date().toISOString() 
         }
-        updated.profit = updated.amount - (updated.cost || 0)
         return updated
       }
       return transaction
@@ -109,7 +134,7 @@ export const RiceCreditProvider = ({ children }) => {
     setTransactions(prev => prev.map(transaction => {
       if (transaction.id === id) {
         const newBalance = transaction.remainingBalance - amount
-        const payments = [...transaction.payments, {
+        const payments = [...(transaction.payments || []), {
           id: Date.now(),
           amount,
           date: new Date().toISOString(),
@@ -146,7 +171,7 @@ export const RiceCreditProvider = ({ children }) => {
     const totalCost = active.reduce((sum, t) => sum + (t.cost || 0), 0)
     const totalProfit = active.reduce((sum, t) => sum + (t.profit || 0), 0)
     const totalPaid = active.reduce((sum, t) => {
-      const paid = t.payments.reduce((s, p) => s + p.amount, 0)
+      const paid = (t.payments || []).reduce((s, p) => s + p.amount, 0)
       return sum + paid
     }, 0)
     const totalRemaining = active.reduce((sum, t) => sum + t.remainingBalance, 0)
