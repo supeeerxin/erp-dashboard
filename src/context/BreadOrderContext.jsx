@@ -33,7 +33,6 @@ export const BreadOrderProvider = ({ children }) => {
 
   const addOrder = (data) => {
     try {
-      // Calculate totals from the data passed from the modal
       const boxes = data.boxes || 0
       const pieces = data.pieces || 0
       const sellingPricePerBox = data.sellingPricePerBox || 0
@@ -52,6 +51,8 @@ export const BreadOrderProvider = ({ children }) => {
         totalSellingPrice: totalSellingPrice,
         totalCost: totalCost,
         profit: profit,
+        remainingBalance: totalSellingPrice, // Track remaining balance
+        payments: [], // Track payments
         status: data.status || 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -66,6 +67,49 @@ export const BreadOrderProvider = ({ children }) => {
       showNotification('Failed to create order. Please try again.', 'error')
       return null
     }
+  }
+
+  // Add payment to order
+  const addPayment = (id, amount) => {
+    setOrders(prev => prev.map(order => {
+      if (order.id === id) {
+        const newBalance = order.remainingBalance - amount
+        
+        if (newBalance <= 0) {
+          // Fully paid
+          const payments = [...(order.payments || []), {
+            id: Date.now(),
+            amount: order.remainingBalance,
+            date: new Date().toISOString(),
+            type: 'payment'
+          }]
+          return {
+            ...order,
+            payments,
+            remainingBalance: 0,
+            status: 'completed',
+            updatedAt: new Date().toISOString()
+          }
+        }
+        
+        // Partial payment
+        const payments = [...(order.payments || []), {
+          id: Date.now(),
+          amount,
+          date: new Date().toISOString(),
+          type: 'payment'
+        }]
+        
+        return {
+          ...order,
+          payments,
+          remainingBalance: newBalance,
+          updatedAt: new Date().toISOString()
+        }
+      }
+      return order
+    }))
+    showNotification(`Payment recorded!`, 'success')
   }
 
   const updateOrder = (id, data) => {
@@ -84,6 +128,7 @@ export const BreadOrderProvider = ({ children }) => {
           updated.totalSellingPrice = (boxes || 0) * sellingPricePerBox + (pieces || 0) * sellingPricePerPiece
           updated.totalCost = (boxes || 0) * costPerBox + (pieces || 0) * costPerPiece
           updated.profit = updated.totalSellingPrice - updated.totalCost
+          updated.remainingBalance = updated.totalSellingPrice - (order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0)
         }
         return updated
       }
@@ -119,7 +164,23 @@ export const BreadOrderProvider = ({ children }) => {
     setOrders(prev => prev.map(order => {
       if (order.id === id) {
         if (status === 'completed' && order.status !== 'completed') {
-          showNotification(`Order ${order.transactionNumber} marked as paid!`, 'success')
+          // If marked as completed, auto-pay remaining balance
+          if (order.remainingBalance > 0) {
+            const payments = [...(order.payments || []), {
+              id: Date.now(),
+              amount: order.remainingBalance,
+              date: new Date().toISOString(),
+              type: 'payment'
+            }]
+            return {
+              ...order,
+              status,
+              payments,
+              remainingBalance: 0,
+              updatedAt: new Date().toISOString()
+            }
+          }
+          showNotification(`Order ${order.transactionNumber} completed!`, 'success')
         }
         if (status === 'delivered' && order.status !== 'delivered') {
           showNotification(`Order ${order.transactionNumber} delivered!`, 'success')
@@ -144,6 +205,11 @@ export const BreadOrderProvider = ({ children }) => {
     const totalSelling = active.reduce((sum, o) => sum + (o.totalSellingPrice || 0), 0)
     const totalCost = active.reduce((sum, o) => sum + (o.totalCost || 0), 0)
     const totalProfit = active.reduce((sum, o) => sum + (o.profit || 0), 0)
+    const totalPaid = active.reduce((sum, o) => {
+      const paid = (o.payments || []).reduce((s, p) => s + p.amount, 0)
+      return sum + paid
+    }, 0)
+    const totalRemaining = active.reduce((sum, o) => sum + (o.remainingBalance || 0), 0)
     const pending = active.filter(o => o.status === 'pending').length
     const delivered = active.filter(o => o.status === 'delivered').length
     const completed = active.filter(o => o.status === 'completed').length
@@ -153,6 +219,8 @@ export const BreadOrderProvider = ({ children }) => {
       totalSelling,
       totalCost,
       totalProfit,
+      totalPaid,
+      totalRemaining,
       pending,
       delivered,
       completed
@@ -170,6 +238,7 @@ export const BreadOrderProvider = ({ children }) => {
     restoreOrder,
     permanentDeleteOrder,
     updateOrderStatus,
+    addPayment,
     getTotals,
     getActiveOrders,
     getDeletedOrders
