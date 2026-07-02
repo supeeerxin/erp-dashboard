@@ -32,7 +32,8 @@ export const BreadOrderProvider = ({ children }) => {
   }, [orders, loading])
 
   const addOrder = (data) => {
-    const totalAmount = data.quantity * data.pricePerBread
+    // Calculate total: boxes * pricePerBox + pieces * pricePerPiece
+    const totalAmount = (data.boxes || 0) * (data.pricePerBox || 0) + (data.pieces || 0) * (data.pricePerPiece || 0)
 
     const newOrder = {
       id: Date.now(),
@@ -53,12 +54,12 @@ export const BreadOrderProvider = ({ children }) => {
     setOrders(prev => prev.map(order => {
       if (order.id === id) {
         const updated = { ...order, ...data, updatedAt: new Date().toISOString() }
-        // Recalculate total if quantity or price changed
-        if (data.quantity || data.pricePerBread) {
-          const quantity = data.quantity || order.quantity
-          const price = data.pricePerBread || order.pricePerBread
-          updated.totalAmount = quantity * price
-        }
+        // Recalculate total
+        const boxes = data.boxes !== undefined ? data.boxes : order.boxes
+        const pieces = data.pieces !== undefined ? data.pieces : order.pieces
+        const pricePerBox = data.pricePerBox !== undefined ? data.pricePerBox : order.pricePerBox
+        const pricePerPiece = data.pricePerPiece !== undefined ? data.pricePerPiece : order.pricePerPiece
+        updated.totalAmount = (boxes || 0) * (pricePerBox || 0) + (pieces || 0) * (pricePerPiece || 0)
         return updated
       }
       return order
