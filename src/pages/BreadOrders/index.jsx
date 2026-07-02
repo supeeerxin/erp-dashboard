@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ShoppingBag, Plus, Search, Edit2, Trash2, RotateCcw, Eye, Archive, Package, CheckCircle, Clock, Truck, List } from 'lucide-react'
+import { ShoppingBag, Plus, Search, Edit2, Trash2, RotateCcw, Eye, Archive, Package, CheckCircle, Clock, Truck, List, AlertCircle } from 'lucide-react'
 import { useBreadOrders } from '../../context/BreadOrderContext'
 import { useBreadProducts } from '../../context/BreadProductContext'
 import { useCustomers } from '../../context/CustomerContext'
@@ -57,18 +57,22 @@ const BreadOrders = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'completed':
-        return <span className="badge badge-success">Completed</span>
+        return <span className="badge badge-success">Paid</span>
       case 'delivered':
         return <span className="badge badge-info">Delivered</span>
-      case 'baking':
-        return <span className="badge badge-warning">Baking</span>
+      case 'pending':
+        return <span className="badge badge-warning">Pending</span>
       default:
-        return <span className="badge badge-secondary">Pending</span>
+        return <span className="badge badge-secondary">{status}</span>
     }
   }
 
   const handleAddOrder = (data) => {
-    addOrder(data)
+    const result = addOrder(data)
+    if (result === null) {
+      // Error notification already shown in context
+      return
+    }
   }
 
   const handleEditOrder = (order) => {
@@ -82,7 +86,7 @@ const BreadOrders = () => {
   }
 
   const handleDeleteOrder = (id) => {
-    if (window.confirm('Move this order to trash?')) {
+    if (window.confirm('Move this order to trash? This will restore inventory.')) {
       deleteOrder(id)
     }
   }
@@ -143,7 +147,7 @@ const BreadOrders = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bread Orders</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage bread orders with selling price and cost tracking
+            Manage bread orders with inventory and profit tracking
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -204,7 +208,7 @@ const BreadOrders = () => {
             </p>
           </div>
           <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Paid</p>
             <p className="text-lg font-bold text-green-500">{totals.completed}</p>
           </div>
         </div>
@@ -236,38 +240,61 @@ const BreadOrders = () => {
               </div>
             </div>
           ) : (
-            filteredProducts.map(product => (
-              <div key={product.id} className="card card-hover">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{product.name}</h3>
-                    <div className="mt-2 space-y-1 text-sm">
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Selling Price: <span className="font-medium text-primary-500">₱{product.sellingPricePerBox?.toLocaleString() || 0}/box</span>
-                        <span className="text-gray-400 ml-1">({product.piecesPerBox || 24} pcs)</span>
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Per Piece: <span className="font-medium text-primary-500">₱{product.sellingPricePerPiece?.toLocaleString() || 0}</span>
-                      </p>
+            filteredProducts.map(product => {
+              const isLowStock = (product.stockBoxes || 0) <= 5 && (product.stockBoxes || 0) > 0
+              const isOutOfStock = (product.stockBoxes || 0) === 0
+              
+              return (
+                <div key={product.id} className="card card-hover">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{product.name}</h3>
+                      <div className="mt-2 space-y-1 text-sm">
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Selling: <span className="font-medium text-primary-500">₱{product.sellingPricePerBox?.toLocaleString() || 0}/box</span>
+                          <span className="text-gray-400 ml-1">({product.piecesPerBox || 24} pcs)</span>
+                        </p>
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Cost: <span className="font-medium text-gray-900 dark:text-white">₱{product.costPerBox?.toLocaleString() || 0}/box</span>
+                        </p>
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Per Piece: <span className="font-medium text-primary-500">₱{product.sellingPricePerPiece?.toLocaleString() || 0}</span>
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm font-medium ${isOutOfStock ? 'text-red-500' : isLowStock ? 'text-yellow-500' : 'text-gray-600 dark:text-gray-400'}`}>
+                            Stock: {product.stockBoxes || 0} boxes | {product.stockPieces || 0} pieces
+                          </p>
+                          {isLowStock && !isOutOfStock && (
+                            <span className="text-xs text-yellow-500 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> Low stock!
+                            </span>
+                          )}
+                          {isOutOfStock && (
+                            <span className="text-xs text-red-500 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> Out of stock!
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleEditProduct(product)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(product.id)}
+                        className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleEditProduct(product)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProduct(product.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       ) : (
@@ -361,9 +388,8 @@ const BreadOrders = () => {
                                 className="text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                               >
                                 <option value="pending">Pending</option>
-                                <option value="baking">Baking</option>
                                 <option value="delivered">Delivered</option>
-                                <option value="completed">Completed</option>
+                                <option value="completed">Completed / Paid</option>
                               </select>
                             )}
 
@@ -395,6 +421,7 @@ const BreadOrders = () => {
                                 <button
                                   onClick={() => handleDeleteOrder(order.id)}
                                   className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                                  title="Delete (restore inventory)"
                                 >
                                   <Trash2 className="w-4 h-4 text-red-500" />
                                 </button>
