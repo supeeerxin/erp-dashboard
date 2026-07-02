@@ -71,7 +71,10 @@ const Dashboard = () => {
       pendingOrders,
       riceCreditTransactions,
       cashLoans,
-      breadOrders
+      breadOrders,
+      incomes,
+      expenses,
+      payables
     }
   }, [customers, riceCreditTransactions, cashLoans, breadOrders, incomes, expenses, payables])
 
@@ -210,7 +213,7 @@ const Dashboard = () => {
       value: `₱${totals.totalPayablesUnpaid.toLocaleString()}`,
       icon: CreditCard,
       color: 'text-red-500',
-      subtitle: `${payables?.filter(p => p.status !== 'paid').length || 0} bills/loans due`
+      subtitle: `${totals.payables?.filter(p => p.status !== 'paid').length || 0} bills/loans due`
     }
   ]
 
