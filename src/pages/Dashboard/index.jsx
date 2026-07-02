@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -38,32 +38,49 @@ const Dashboard = () => {
   const { expenses } = useExpenses()
   const { payables } = usePayables()
 
-  // Calculate totals
-  const totalCustomers = customers?.length || 0
-  
-  const totalRiceCredit = riceCreditTransactions?.reduce((sum, t) => sum + (t.totalSellingPrice || t.amount || 0), 0) || 0
-  const totalBreadOrders = breadOrders?.reduce((sum, o) => sum + (o.totalSellingPrice || 0), 0) || 0
-  const totalCashLoans = cashLoans?.reduce((sum, l) => sum + (l.totalPayable || l.principal || 0), 0) || 0
-  
-  const totalRevenue = totalRiceCredit + totalBreadOrders + totalCashLoans
-  const totalIncome = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
-  const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
-  const totalPayablesUnpaid = payables?.filter(p => p.status !== 'paid').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
-  
-  const netProfit = (totalRevenue + totalIncome) - totalExpenses
-  const cashOnHand = netProfit - totalPayablesUnpaid
+  // Use useMemo to prevent unnecessary recalculations
+  const totals = useMemo(() => {
+    const totalCustomers = customers?.length || 0
+    
+    const totalRiceCredit = riceCreditTransactions?.reduce((sum, t) => sum + (t.totalSellingPrice || t.amount || 0), 0) || 0
+    const totalBreadOrders = breadOrders?.reduce((sum, o) => sum + (o.totalSellingPrice || 0), 0) || 0
+    const totalCashLoans = cashLoans?.reduce((sum, l) => sum + (l.totalPayable || l.principal || 0), 0) || 0
+    
+    const totalRevenue = totalRiceCredit + totalBreadOrders + totalCashLoans
+    const totalIncome = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
+    const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+    const totalPayablesUnpaid = payables?.filter(p => p.status !== 'paid').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+    
+    const netProfit = (totalRevenue + totalIncome) - totalExpenses
+    const cashOnHand = netProfit - totalPayablesUnpaid
 
-  // Get active counts
-  const activeRiceCredits = riceCreditTransactions?.filter(t => t.status === 'active').length || 0
-  const activeCashLoans = cashLoans?.filter(l => l.status === 'active').length || 0
-  const pendingOrders = breadOrders?.filter(o => o.status === 'pending').length || 0
+    const activeRiceCredits = riceCreditTransactions?.filter(t => t.status === 'active').length || 0
+    const activeCashLoans = cashLoans?.filter(l => l.status === 'active').length || 0
+    const pendingOrders = breadOrders?.filter(o => o.status === 'pending').length || 0
 
-  // Prepare recent transactions
+    return {
+      totalCustomers,
+      totalRevenue,
+      totalIncome,
+      totalExpenses,
+      totalPayablesUnpaid,
+      netProfit,
+      cashOnHand,
+      activeRiceCredits,
+      activeCashLoans,
+      pendingOrders,
+      riceCreditTransactions,
+      cashLoans,
+      breadOrders
+    }
+  }, [customers, riceCreditTransactions, cashLoans, breadOrders, incomes, expenses, payables])
+
+  // Prepare recent transactions and chart data - only runs when data changes
   useEffect(() => {
     const allTransactions = []
 
     // Rice Credit transactions
-    riceCreditTransactions?.forEach(t => {
+    totals.riceCreditTransactions?.forEach(t => {
       if (!t.isDeleted) {
         allTransactions.push({
           type: 'rice-credit',
@@ -76,7 +93,7 @@ const Dashboard = () => {
     })
 
     // Cash Loans
-    cashLoans?.forEach(l => {
+    totals.cashLoans?.forEach(l => {
       if (!l.isDeleted) {
         allTransactions.push({
           type: 'cash-loan',
@@ -89,7 +106,7 @@ const Dashboard = () => {
     })
 
     // Bread Orders
-    breadOrders?.forEach(o => {
+    totals.breadOrders?.forEach(o => {
       if (!o.isDeleted) {
         allTransactions.push({
           type: 'bread-order',
@@ -103,7 +120,7 @@ const Dashboard = () => {
 
     // Sort by date (most recent first)
     allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date))
-    setRecentData(allTransactions)
+    setRecentData(allTransactions.slice(0, 10))
 
     // Prepare chart data (last 6 months)
     const months = []
@@ -128,15 +145,13 @@ const Dashboard = () => {
     }
     
     setChartData({ labels: months, values: values })
-
-    // Simulate loading
-    const timer = setTimeout(() => {
+    
+    // Only show notification once on first load
+    if (loading) {
       setLoading(false)
       showNotification('Dashboard loaded!', 'success')
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [riceCreditTransactions, cashLoans, breadOrders, incomes, expenses, payables])
+    }
+  }, [totals.riceCreditTransactions, totals.cashLoans, totals.breadOrders, loading, showNotification])
 
   if (loading) {
     return (
@@ -171,28 +186,28 @@ const Dashboard = () => {
   const stats = [
     {
       title: 'Total Revenue',
-      value: `₱${totalRevenue.toLocaleString()}`,
+      value: `₱${totals.totalRevenue.toLocaleString()}`,
       icon: TrendingUp,
       color: 'text-blue-500',
-      subtitle: `${activeRiceCredits + activeCashLoans} active credits/loans`
+      subtitle: `${totals.activeRiceCredits + totals.activeCashLoans} active credits/loans`
     },
     {
       title: 'Net Profit',
-      value: `₱${netProfit.toLocaleString()}`,
+      value: `₱${totals.netProfit.toLocaleString()}`,
       icon: WalletIcon,
-      color: netProfit >= 0 ? 'text-green-500' : 'text-red-500',
-      subtitle: `Cash on Hand: ₱${cashOnHand.toLocaleString()}`
+      color: totals.netProfit >= 0 ? 'text-green-500' : 'text-red-500',
+      subtitle: `Cash on Hand: ₱${totals.cashOnHand.toLocaleString()}`
     },
     {
       title: 'Total Customers',
-      value: totalCustomers.toString(),
+      value: totals.totalCustomers.toString(),
       icon: Users,
       color: 'text-purple-500',
-      subtitle: `${pendingOrders} pending orders`
+      subtitle: `${totals.pendingOrders} pending orders`
     },
     {
       title: 'Unpaid Payables',
-      value: `₱${totalPayablesUnpaid.toLocaleString()}`,
+      value: `₱${totals.totalPayablesUnpaid.toLocaleString()}`,
       icon: CreditCard,
       color: 'text-red-500',
       subtitle: `${payables?.filter(p => p.status !== 'paid').length || 0} bills/loans due`
