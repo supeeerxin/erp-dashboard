@@ -27,6 +27,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/customers', icon: Users, label: 'Customers' },
     { path: '/income', icon: TrendingUp, label: 'Income' },
     { path: '/expenses', icon: TrendingDown, label: 'Expenses' },
+    { path: '/payables', icon: CreditCard, label: 'Payables' },
     { path: '/wallet', icon: Wallet, label: 'Wallet' },
     { path: '/reports', icon: BarChart3, label: 'Reports' },
     { path: '/settings', icon: Settings, label: 'Settings' },
