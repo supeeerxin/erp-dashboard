@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 import { generateOrderNumber } from '../utils/transactionUtils'
 
 const BreadOrderContext = createContext()
@@ -16,6 +17,7 @@ export const BreadOrderProvider = ({ children }) => {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('breadOrders')
@@ -32,57 +34,51 @@ export const BreadOrderProvider = ({ children }) => {
   }, [orders, loading])
 
   const addOrder = (data) => {
-    try {
-      const boxes = data.boxes || 0
-      const pieces = data.pieces || 0
-      const sellingPricePerBox = data.sellingPricePerBox || 0
-      const sellingPricePerPiece = data.sellingPricePerPiece || 0
-      const costPerBox = data.costPerBox || 0
-      const costPerPiece = data.costPerPiece || 0
-      
-      const totalSellingPrice = (boxes * sellingPricePerBox) + (pieces * sellingPricePerPiece)
-      const totalCost = (boxes * costPerBox) + (pieces * costPerPiece)
-      const profit = totalSellingPrice - totalCost
+    const boxes = data.boxes || 0
+    const pieces = data.pieces || 0
+    const sellingPricePerBox = data.sellingPricePerBox || 0
+    const sellingPricePerPiece = data.sellingPricePerPiece || 0
+    const costPerBox = data.costPerBox || 0
+    const costPerPiece = data.costPerPiece || 0
+    
+    const totalSellingPrice = (boxes * sellingPricePerBox) + (pieces * sellingPricePerPiece)
+    const totalCost = (boxes * costPerBox) + (pieces * costPerPiece)
+    const profit = totalSellingPrice - totalCost
 
-      const newOrder = {
-        id: Date.now(),
-        transactionNumber: generateOrderNumber(),
-        ...data,
-        totalSellingPrice: totalSellingPrice,
-        totalCost: totalCost,
-        profit: profit,
-        remainingBalance: totalSellingPrice, // Track remaining balance
-        payments: [], // Track payments
-        status: data.status || 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isDeleted: false
-      }
-      
-      setOrders(prev => [...prev, newOrder])
-      showNotification(`Order ${newOrder.transactionNumber} created!`, 'success')
-      return newOrder
-    } catch (error) {
-      console.error('Error creating order:', error)
-      showNotification('Failed to create order. Please try again.', 'error')
-      return null
+    const newOrder = {
+      id: Date.now(),
+      transactionNumber: generateOrderNumber(),
+      ...data,
+      totalSellingPrice: totalSellingPrice,
+      totalCost: totalCost,
+      profit: profit,
+      remainingBalance: totalSellingPrice,
+      payments: [],
+      status: data.status || 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isDeleted: false
     }
+    
+    setOrders(prev => [...prev, newOrder])
+    showNotification(`Order ${newOrder.transactionNumber} created!`, 'success')
+    addLog('Created', 'Bread Order', `Created order: ${newOrder.transactionNumber} for ${data.customerName} (${boxes} boxes, ${pieces} pieces) - Total: ₱${totalSellingPrice}`)
+    return newOrder
   }
 
-  // Add payment to order
   const addPayment = (id, amount) => {
     setOrders(prev => prev.map(order => {
       if (order.id === id) {
         const newBalance = order.remainingBalance - amount
         
         if (newBalance <= 0) {
-          // Fully paid
           const payments = [...(order.payments || []), {
             id: Date.now(),
             amount: order.remainingBalance,
             date: new Date().toISOString(),
             type: 'payment'
           }]
+          addLog('Paid', 'Bread Order', `Payment of ₱${order.remainingBalance} recorded for ${order.transactionNumber} (Fully Paid)`)
           return {
             ...order,
             payments,
@@ -92,7 +88,6 @@ export const BreadOrderProvider = ({ children }) => {
           }
         }
         
-        // Partial payment
         const payments = [...(order.payments || []), {
           id: Date.now(),
           amount,
@@ -100,6 +95,7 @@ export const BreadOrderProvider = ({ children }) => {
           type: 'payment'
         }]
         
+        addLog('Paid', 'Bread Order', `Payment of ₱${amount} recorded for ${order.transactionNumber} (Balance: ₱${newBalance})`)
         return {
           ...order,
           payments,
@@ -113,6 +109,7 @@ export const BreadOrderProvider = ({ children }) => {
   }
 
   const updateOrder = (id, data) => {
+    const order = orders.find(o => o.id === id)
     setOrders(prev => prev.map(order => {
       if (order.id === id) {
         const updated = { ...order, ...data, updatedAt: new Date().toISOString() }
@@ -135,36 +132,43 @@ export const BreadOrderProvider = ({ children }) => {
       return order
     }))
     showNotification('Order updated!', 'success')
+    addLog('Updated', 'Bread Order', `Updated order: ${order?.transactionNumber || 'Unknown'}`)
   }
 
   const deleteOrder = (id) => {
+    const order = orders.find(o => o.id === id)
     setOrders(prev => prev.map(order =>
       order.id === id
         ? { ...order, isDeleted: true, deletedAt: new Date().toISOString() }
         : order
     ))
     showNotification('Order moved to trash', 'warning')
+    addLog('Deleted', 'Bread Order', `Soft deleted order: ${order?.transactionNumber || 'Unknown'}`)
   }
 
   const restoreOrder = (id) => {
+    const order = orders.find(o => o.id === id)
     setOrders(prev => prev.map(order =>
       order.id === id
         ? { ...order, isDeleted: false, deletedAt: null }
         : order
     ))
     showNotification('Order restored!', 'success')
+    addLog('Restored', 'Bread Order', `Restored order: ${order?.transactionNumber || 'Unknown'}`)
   }
 
   const permanentDeleteOrder = (id) => {
+    const order = orders.find(o => o.id === id)
     setOrders(prev => prev.filter(order => order.id !== id))
     showNotification('Order permanently deleted', 'error')
+    addLog('Deleted', 'Bread Order', `Permanently deleted order: ${order?.transactionNumber || 'Unknown'}`)
   }
 
   const updateOrderStatus = (id, status) => {
+    const order = orders.find(o => o.id === id)
     setOrders(prev => prev.map(order => {
       if (order.id === id) {
         if (status === 'completed' && order.status !== 'completed') {
-          // If marked as completed, auto-pay remaining balance
           if (order.remainingBalance > 0) {
             const payments = [...(order.payments || []), {
               id: Date.now(),
@@ -172,6 +176,7 @@ export const BreadOrderProvider = ({ children }) => {
               date: new Date().toISOString(),
               type: 'payment'
             }]
+            addLog('Paid', 'Bread Order', `Order ${order.transactionNumber} marked as completed (Auto-paid remaining ₱${order.remainingBalance})`)
             return {
               ...order,
               status,
@@ -180,15 +185,16 @@ export const BreadOrderProvider = ({ children }) => {
               updatedAt: new Date().toISOString()
             }
           }
-          showNotification(`Order ${order.transactionNumber} completed!`, 'success')
+          addLog('Updated', 'Bread Order', `Order ${order.transactionNumber} status changed to ${status}`)
         }
         if (status === 'delivered' && order.status !== 'delivered') {
-          showNotification(`Order ${order.transactionNumber} delivered!`, 'success')
+          addLog('Updated', 'Bread Order', `Order ${order.transactionNumber} marked as delivered`)
         }
         return { ...order, status, updatedAt: new Date().toISOString() }
       }
       return order
     }))
+    showNotification(`Order status updated to ${status}!`, 'success')
   }
 
   const getActiveOrders = () => {
