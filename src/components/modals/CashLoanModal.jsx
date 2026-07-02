@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useCustomers } from '../../context/CustomerContext'
+import { addDays, addMonths, format } from 'date-fns'
 
 const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
   const { customers } = useCustomers()
@@ -12,6 +13,8 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
     interestType: 'percentage',
     downPayment: '',
     numberOfPayments: '1',
+    paymentTerm: 'months', // months or days
+    termValue: '1',
     description: '',
     dueDate: ''
   })
@@ -26,6 +29,8 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
         interestType: loan.interestType || 'percentage',
         downPayment: loan.downPayment || '',
         numberOfPayments: loan.numberOfPayments || '1',
+        paymentTerm: loan.paymentTerm || 'months',
+        termValue: loan.termValue || '1',
         description: loan.description || '',
         dueDate: loan.dueDate || ''
       })
@@ -38,6 +43,8 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
         interestType: 'percentage',
         downPayment: '',
         numberOfPayments: '1',
+        paymentTerm: 'months',
+        termValue: '1',
         description: '',
         dueDate: ''
       })
@@ -59,6 +66,26 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
     }))
   }
 
+  // Auto-compute due date
+  useEffect(() => {
+    if (formData.termValue && formData.paymentTerm) {
+      const today = new Date()
+      let dueDate = today
+      const termValue = parseInt(formData.termValue) || 0
+      
+      if (formData.paymentTerm === 'months') {
+        dueDate = addMonths(today, termValue)
+      } else if (formData.paymentTerm === 'days') {
+        dueDate = addDays(today, termValue)
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        dueDate: format(dueDate, 'yyyy-MM-dd')
+      }))
+    }
+  }, [formData.termValue, formData.paymentTerm])
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!formData.customerId || !formData.principal) {
@@ -70,7 +97,8 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
       principal: parseFloat(formData.principal),
       interestRate: parseFloat(formData.interestRate) || 0,
       downPayment: parseFloat(formData.downPayment) || 0,
-      numberOfPayments: parseInt(formData.numberOfPayments) || 1
+      numberOfPayments: parseInt(formData.numberOfPayments) || 1,
+      termValue: parseInt(formData.termValue) || 1
     })
     onClose()
   }
@@ -83,6 +111,7 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
   const interestType = formData.interestType
   const downPayment = parseFloat(formData.downPayment) || 0
   const numberOfPayments = parseInt(formData.numberOfPayments) || 1
+  const termValue = parseInt(formData.termValue) || 1
   
   const interestAmount = interestType === 'percentage' 
     ? (principal * interestRate / 100) 
@@ -176,6 +205,36 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
             <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Payment Terms</h4>
             
             <div>
+              <label className="label">Payment Term</label>
+              <div className="flex gap-2">
+                <select
+                  name="paymentTerm"
+                  value={formData.paymentTerm}
+                  onChange={handleChange}
+                  className="input-field w-32"
+                >
+                  <option value="months">Months</option>
+                  <option value="days">Days</option>
+                </select>
+                <input
+                  type="number"
+                  name="termValue"
+                  value={formData.termValue}
+                  onChange={handleChange}
+                  className="input-field flex-1"
+                  placeholder="1"
+                  min="1"
+                  step="1"
+                />
+              </div>
+              {formData.dueDate && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Due Date: <span className="font-medium text-primary-500">{new Date(formData.dueDate).toLocaleDateString()}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="mt-3">
               <label className="label">Down Payment (₱)</label>
               <input
                 type="number"
@@ -221,17 +280,6 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
                 )}
               </div>
             )}
-          </div>
-
-          <div>
-            <label className="label">Due Date</label>
-            <input
-              type="date"
-              name="dueDate"
-              value={formData.dueDate}
-              onChange={handleChange}
-              className="input-field"
-            />
           </div>
 
           <div>
