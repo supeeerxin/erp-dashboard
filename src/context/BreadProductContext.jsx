@@ -16,13 +16,63 @@ export const BreadProductProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
 
-  // Default products with piecesPerBox
+  // Default products with inventory
   const defaultProducts = [
-    { id: 1, name: 'Pandesal', pricePerBox: 250, piecesPerBox: 24, pricePerPiece: 10.42 },
-    { id: 2, name: 'Monay', pricePerBox: 300, piecesPerBox: 24, pricePerPiece: 12.50 },
-    { id: 3, name: 'Ensaymada', pricePerBox: 400, piecesPerBox: 20, pricePerPiece: 20.00 },
-    { id: 4, name: 'Pan de Coco', pricePerBox: 350, piecesPerBox: 24, pricePerPiece: 14.58 },
-    { id: 5, name: 'Spanish Bread', pricePerBox: 380, piecesPerBox: 20, pricePerPiece: 19.00 },
+    { 
+      id: 1, 
+      name: 'Pandesal', 
+      sellingPricePerBox: 250, 
+      piecesPerBox: 24, 
+      sellingPricePerPiece: 10.42,
+      costPerBox: 180,
+      costPerPiece: 7.50,
+      stockBoxes: 20,
+      stockPieces: 0
+    },
+    { 
+      id: 2, 
+      name: 'Monay', 
+      sellingPricePerBox: 300, 
+      piecesPerBox: 24, 
+      sellingPricePerPiece: 12.50,
+      costPerBox: 220,
+      costPerPiece: 9.17,
+      stockBoxes: 15,
+      stockPieces: 0
+    },
+    { 
+      id: 3, 
+      name: 'Ensaymada', 
+      sellingPricePerBox: 400, 
+      piecesPerBox: 20, 
+      sellingPricePerPiece: 20.00,
+      costPerBox: 300,
+      costPerPiece: 15.00,
+      stockBoxes: 10,
+      stockPieces: 0
+    },
+    { 
+      id: 4, 
+      name: 'Pan de Coco', 
+      sellingPricePerBox: 350, 
+      piecesPerBox: 24, 
+      sellingPricePerPiece: 14.58,
+      costPerBox: 260,
+      costPerPiece: 10.83,
+      stockBoxes: 12,
+      stockPieces: 0
+    },
+    { 
+      id: 5, 
+      name: 'Spanish Bread', 
+      sellingPricePerBox: 380, 
+      piecesPerBox: 20, 
+      sellingPricePerPiece: 19.00,
+      costPerBox: 280,
+      costPerPiece: 14.00,
+      stockBoxes: 10,
+      stockPieces: 0
+    },
   ]
 
   useEffect(() => {
@@ -46,6 +96,8 @@ export const BreadProductProvider = ({ children }) => {
     const newProduct = {
       id: Date.now(),
       ...data,
+      stockBoxes: data.stockBoxes || 0,
+      stockPieces: data.stockPieces || 0,
       createdAt: new Date().toISOString()
     }
     setProducts(prev => [...prev, newProduct])
@@ -71,13 +123,54 @@ export const BreadProductProvider = ({ children }) => {
     return products.find(product => product.id === id)
   }
 
+  // Deduct inventory when order is placed
+  const deductInventory = (productId, boxes, pieces) => {
+    setProducts(prev => prev.map(product => {
+      if (product.id === productId) {
+        const newStockBoxes = Math.max(0, (product.stockBoxes || 0) - (boxes || 0))
+        const newStockPieces = Math.max(0, (product.stockPieces || 0) - (pieces || 0))
+        
+        // Check low stock
+        if (newStockBoxes <= 5 && newStockBoxes > 0) {
+          showNotification(`Low stock: ${product.name} - only ${newStockBoxes} boxes left!`, 'warning')
+        }
+        if (newStockPieces <= 10 && newStockPieces > 0) {
+          showNotification(`Low stock: ${product.name} - only ${newStockPieces} pieces left!`, 'warning')
+        }
+        
+        return {
+          ...product,
+          stockBoxes: newStockBoxes,
+          stockPieces: newStockPieces
+        }
+      }
+      return product
+    }))
+  }
+
+  // Restore inventory when order is cancelled/deleted
+  const restoreInventory = (productId, boxes, pieces) => {
+    setProducts(prev => prev.map(product => {
+      if (product.id === productId) {
+        return {
+          ...product,
+          stockBoxes: (product.stockBoxes || 0) + (boxes || 0),
+          stockPieces: (product.stockPieces || 0) + (pieces || 0)
+        }
+      }
+      return product
+    }))
+  }
+
   const value = {
     products,
     loading,
     addProduct,
     updateProduct,
     deleteProduct,
-    getProduct
+    getProduct,
+    deductInventory,
+    restoreInventory
   }
 
   return (
