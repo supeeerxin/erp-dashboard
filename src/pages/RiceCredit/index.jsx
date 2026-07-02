@@ -199,6 +199,7 @@ const RiceCredit = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="table-header">Transaction #</th>
                   <th className="table-header">Customer</th>
                   <th className="table-header text-right">Total</th>
                   <th className="table-header text-right">Down</th>
@@ -219,6 +220,10 @@ const RiceCredit = () => {
                   
                   return (
                     <tr key={transaction.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                     
+                      <td className="table-cell font-mono text-xs text-gray-600 dark:text-gray-400">
+  {transaction.transactionNumber || `TRX-${transaction.id.toString().slice(-6)}`}
+</td>
                       <td className="table-cell font-medium">
                         {customer?.name || transaction.customerName || 'Unknown'}
                       </td>
