@@ -125,34 +125,45 @@ export const RiceCreditProvider = ({ children }) => {
   const addPayment = (id, amount) => {
     setTransactions(prev => prev.map(transaction => {
       if (transaction.id === id) {
-        const newBalance = transaction.remainingBalance - amount
+        // Calculate new balance
+        let newBalance = transaction.remainingBalance - amount
+        
+        // If balance becomes 0 or negative, set to 0 and mark as completed
+        if (newBalance <= 0) {
+          newBalance = 0
+          const payments = [...(transaction.payments || []), {
+            id: Date.now(),
+            amount: transaction.remainingBalance, // Pay the remaining balance
+            date: new Date().toISOString(),
+            type: 'payment'
+          }]
+          return {
+            ...transaction,
+            payments,
+            remainingBalance: 0,
+            status: 'completed',
+            updatedAt: new Date().toISOString()
+          }
+        }
+        
+        // Normal payment
         const payments = [...(transaction.payments || []), {
           id: Date.now(),
           amount,
           date: new Date().toISOString(),
           type: 'payment'
         }]
-        const status = newBalance <= 0 ? 'completed' : transaction.status
-        
-        console.log('Adding payment:', {
-          id,
-          amount,
-          oldBalance: transaction.remainingBalance,
-          newBalance,
-          totalPayments: payments.reduce((sum, p) => sum + p.amount, 0)
-        })
         
         return {
           ...transaction,
           payments,
-          remainingBalance: newBalance < 0 ? 0 : newBalance,
-          status,
+          remainingBalance: newBalance,
           updatedAt: new Date().toISOString()
         }
       }
       return transaction
     }))
-    showNotification(`Payment of ₱${amount.toLocaleString()} recorded!`, 'success')
+    showNotification(`Payment recorded!`, 'success')
   }
 
   const getActiveTransactions = () => {
@@ -191,6 +202,26 @@ export const RiceCreditProvider = ({ children }) => {
       totalTransactions: active.length
     }
   }
+
+  // Fix existing transactions - ensure completed ones have 0 balance
+  const fixExistingTransactions = () => {
+    setTransactions(prev => prev.map(transaction => {
+      if (transaction.status === 'completed' && transaction.remainingBalance > 0) {
+        return {
+          ...transaction,
+          remainingBalance: 0
+        }
+      }
+      return transaction
+    }))
+  }
+
+  // Call fix on load
+  useEffect(() => {
+    if (!loading) {
+      fixExistingTransactions()
+    }
+  }, [loading])
 
   const value = {
     transactions: getActiveTransactions(),
