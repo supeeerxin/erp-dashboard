@@ -18,7 +18,6 @@ export const CustomerProvider = ({ children }) => {
   const { showNotification } = useNotification()
   const { addLog } = useAudit()
 
-  // Load customers from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('customers')
     if (saved) {
@@ -27,19 +26,17 @@ export const CustomerProvider = ({ children }) => {
     setLoading(false)
   }, [])
 
-  // Save to localStorage whenever customers change
   useEffect(() => {
     if (!loading) {
       localStorage.setItem('customers', JSON.stringify(customers))
     }
   }, [customers, loading])
 
-  // Add customer
   const addCustomer = (customerData) => {
     const newCustomer = {
       id: Date.now(),
       ...customerData,
-      isDeleted: false, // Soft delete flag
+      isDeleted: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -49,7 +46,6 @@ export const CustomerProvider = ({ children }) => {
     return newCustomer
   }
 
-  // Update customer
   const updateCustomer = (id, customerData) => {
     const customer = getCustomer(id)
     setCustomers(prev => prev.map(customer => 
@@ -61,7 +57,6 @@ export const CustomerProvider = ({ children }) => {
     addLog('Updated', 'Customer', `Updated customer: ${customer?.name || 'Unknown'} → ${customerData.name || 'Updated'}`)
   }
 
-  // Soft delete customer
   const deleteCustomer = (id) => {
     const customer = getCustomer(id)
     setCustomers(prev => prev.map(customer =>
@@ -73,7 +68,6 @@ export const CustomerProvider = ({ children }) => {
     addLog('Deleted', 'Customer', `Soft deleted customer: ${customer?.name || 'Unknown'}`)
   }
 
-  // Restore customer from trash
   const restoreCustomer = (id) => {
     const customer = getCustomer(id)
     setCustomers(prev => prev.map(customer =>
@@ -85,7 +79,6 @@ export const CustomerProvider = ({ children }) => {
     addLog('Restored', 'Customer', `Restored customer: ${customer?.name || 'Unknown'}`)
   }
 
-  // Permanently delete customer (hard delete)
   const permanentDeleteCustomer = (id) => {
     const customer = getCustomer(id)
     setCustomers(prev => prev.filter(customer => customer.id !== id))
@@ -93,29 +86,26 @@ export const CustomerProvider = ({ children }) => {
     addLog('Deleted', 'Customer', `Permanently deleted customer: ${customer?.name || 'Unknown'}`)
   }
 
-  // Get active customers (not deleted)
   const getActiveCustomers = () => {
     return customers.filter(customer => !customer.isDeleted)
   }
 
-  // Get deleted customers (in trash)
   const getDeletedCustomers = () => {
     return customers.filter(customer => customer.isDeleted)
   }
 
-  // Get customer by ID (including deleted)
   const getCustomer = (id) => {
     return customers.find(customer => customer.id === id)
   }
 
   const value = {
-    customers: getActiveCustomers(), // Only return active customers
+    customers: getActiveCustomers(),
     deletedCustomers: getDeletedCustomers(),
-    allCustomers: customers, // All including deleted
+    allCustomers: customers,
     loading,
     addCustomer,
     updateCustomer,
-    deleteCustomer, // Soft delete
+    deleteCustomer,
     restoreCustomer,
     permanentDeleteCustomer,
     getCustomer,
