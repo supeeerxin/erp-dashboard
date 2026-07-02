@@ -12,7 +12,6 @@ const AuditLog = () => {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
-  // Get unique modules and actions for filters
   const modules = useMemo(() => {
     const unique = new Set(logs.map(log => log.module))
     return ['all', ...Array.from(unique)]
@@ -23,7 +22,6 @@ const AuditLog = () => {
     return ['all', ...Array.from(unique)]
   }, [logs])
 
-  // Filter logs
   const filteredLogs = useMemo(() => {
     let filtered = logs
 
@@ -145,7 +143,6 @@ const AuditLog = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -157,22 +154,15 @@ const AuditLog = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handleExportLogs}
-            className="btn-secondary flex items-center gap-2"
-          >
+          <button onClick={handleExportLogs} className="btn-secondary flex items-center gap-2">
             <Download className="w-4 h-4" /> Export
           </button>
-          <button
-            onClick={handleClearLogs}
-            className="btn-secondary flex items-center gap-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-          >
+          <button onClick={handleClearLogs} className="btn-secondary flex items-center gap-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
             <Trash2 className="w-4 h-4" /> Clear All
           </button>
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Logs</p>
@@ -194,7 +184,6 @@ const AuditLog = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="card">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1 relative">
@@ -207,56 +196,32 @@ const AuditLog = () => {
               className="input-field pl-10"
             />
           </div>
-          <select
-            value={filterModule}
-            onChange={(e) => setFilterModule(e.target.value)}
-            className="input-field lg:w-40"
-          >
+          <select value={filterModule} onChange={(e) => setFilterModule(e.target.value)} className="input-field lg:w-40">
             <option value="all">All Modules</option>
             {modules.filter(m => m !== 'all').map(module => (
               <option key={module} value={module}>{module}</option>
             ))}
           </select>
-          <select
-            value={filterAction}
-            onChange={(e) => setFilterAction(e.target.value)}
-            className="input-field lg:w-40"
-          >
+          <select value={filterAction} onChange={(e) => setFilterAction(e.target.value)} className="input-field lg:w-40">
             <option value="all">All Actions</option>
             {actions.filter(a => a !== 'all').map(action => (
               <option key={action} value={action}>{action}</option>
             ))}
           </select>
           <div className="flex gap-2">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="input-field lg:w-36"
-              placeholder="From"
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="input-field lg:w-36"
-              placeholder="To"
-            />
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-field lg:w-36" placeholder="From" />
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-field lg:w-36" placeholder="To" />
           </div>
         </div>
       </div>
 
-      {/* Log List */}
       <div className="card">
         {filteredLogs.length === 0 ? (
           <div className="empty-state">
             <FileText className="empty-state-icon" />
             <p className="empty-state-text">No logs found</p>
             <p className="empty-state-subtext">
-              {logs.length === 0 
-                ? 'No activities recorded yet. Start using the system to generate logs.' 
-                : 'Try adjusting your filters'
-              }
+              {logs.length === 0 ? 'No activities recorded yet.' : 'Try adjusting your filters'}
             </p>
           </div>
         ) : (
