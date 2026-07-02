@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
-import { useAudit } from './AuditContext'
 import { generateIncomeNumber } from '../utils/transactionUtils'
 
 const IncomeContext = createContext()
@@ -17,7 +16,6 @@ export const IncomeProvider = ({ children }) => {
   const [incomes, setIncomes] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
-  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('incomes')
