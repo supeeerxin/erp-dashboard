@@ -5,7 +5,6 @@ import {
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
   Title,
   Tooltip,
   Legend,
@@ -14,12 +13,12 @@ import {
 import { Line } from 'react-chartjs-2'
 import { useTheme } from '../../context/ThemeContext'
 
+// Register all components
 ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
   Title,
   Tooltip,
   Legend,
