@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { generateRiceCreditNumber } from '../utils/transactionUtils'
 
 const RiceCreditContext = createContext()
 
@@ -46,6 +47,7 @@ export const RiceCreditProvider = ({ children }) => {
 
     const newTransaction = {
       id: Date.now(),
+      transactionNumber: generateRiceCreditNumber(), // Add unique transaction number
       ...data,
       downPayment: downPayment,
       numberOfPayments: numberOfPayments,
@@ -59,7 +61,7 @@ export const RiceCreditProvider = ({ children }) => {
       isDeleted: false
     }
     setTransactions(prev => [...prev, newTransaction])
-    showNotification('Rice credit transaction added!', 'success')
+    showNotification(`Transaction ${newTransaction.transactionNumber} added!`, 'success')
     return newTransaction
   }
 
@@ -125,15 +127,13 @@ export const RiceCreditProvider = ({ children }) => {
   const addPayment = (id, amount) => {
     setTransactions(prev => prev.map(transaction => {
       if (transaction.id === id) {
-        // Calculate new balance
         let newBalance = transaction.remainingBalance - amount
         
-        // If balance becomes 0 or negative, set to 0 and mark as completed
         if (newBalance <= 0) {
           newBalance = 0
           const payments = [...(transaction.payments || []), {
             id: Date.now(),
-            amount: transaction.remainingBalance, // Pay the remaining balance
+            amount: transaction.remainingBalance,
             date: new Date().toISOString(),
             type: 'payment'
           }]
@@ -146,7 +146,6 @@ export const RiceCreditProvider = ({ children }) => {
           }
         }
         
-        // Normal payment
         const payments = [...(transaction.payments || []), {
           id: Date.now(),
           amount,
@@ -203,23 +202,17 @@ export const RiceCreditProvider = ({ children }) => {
     }
   }
 
-  // Fix existing transactions - ensure completed ones have 0 balance
-  const fixExistingTransactions = () => {
-    setTransactions(prev => prev.map(transaction => {
-      if (transaction.status === 'completed' && transaction.remainingBalance > 0) {
-        return {
-          ...transaction,
-          remainingBalance: 0
-        }
-      }
-      return transaction
-    }))
-  }
-
-  // Call fix on load
   useEffect(() => {
     if (!loading) {
-      fixExistingTransactions()
+      setTransactions(prev => prev.map(transaction => {
+        if (transaction.status === 'completed' && transaction.remainingBalance > 0) {
+          return {
+            ...transaction,
+            remainingBalance: 0
+          }
+        }
+        return transaction
+      }))
     }
   }, [loading])
 
