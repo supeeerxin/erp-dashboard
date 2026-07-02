@@ -1,8 +1,17 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
-const PaymentModal = ({ isOpen, onClose, onSave, customerName, remainingBalance }) => {
+const PaymentModal = ({ isOpen, onClose, onSave, customerName, remainingBalance, suggestedAmount }) => {
   const [amount, setAmount] = useState('')
+
+  // Auto-fill suggested amount when modal opens
+  useEffect(() => {
+    if (isOpen && suggestedAmount > 0) {
+      setAmount(suggestedAmount.toString())
+    } else {
+      setAmount('')
+    }
+  }, [isOpen, suggestedAmount])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -47,6 +56,12 @@ const PaymentModal = ({ isOpen, onClose, onSave, customerName, remainingBalance 
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Remaining Balance: <span className="font-bold text-primary-500">₱{remainingBalance.toLocaleString()}</span>
             </p>
+            {suggestedAmount > 0 && (
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                Suggested Payment: <span className="font-bold">₱{suggestedAmount.toLocaleString()}</span>
+                <span className="text-xs ml-1">(per give/month)</span>
+              </p>
+            )}
           </div>
 
           <div>
@@ -67,6 +82,15 @@ const PaymentModal = ({ isOpen, onClose, onSave, customerName, remainingBalance 
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Max: ₱{remainingBalance.toLocaleString()}
               </p>
+            )}
+            {suggestedAmount > 0 && (
+              <button
+                type="button"
+                onClick={() => setAmount(suggestedAmount.toString())}
+                className="text-xs text-primary-500 hover:text-primary-600 mt-1"
+              >
+                Use suggested amount
+              </button>
             )}
           </div>
 
