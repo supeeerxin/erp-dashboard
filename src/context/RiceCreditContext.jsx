@@ -30,7 +30,6 @@ export const RiceCreditProvider = ({ children }) => {
     }
   }, [transactions, loading])
 
-  // Add transaction
   const addTransaction = (data) => {
     const totalAmount = data.amount
     const downPayment = data.downPayment || 0
@@ -38,7 +37,6 @@ export const RiceCreditProvider = ({ children }) => {
     const remainingBalance = totalAmount - downPayment
     const paymentPerGive = numberOfPayments > 1 ? remainingBalance / numberOfPayments : remainingBalance
 
-    // Initialize payments with down payment
     const initialPayments = downPayment > 0 ? [{
       id: Date.now(),
       amount: downPayment,
@@ -57,24 +55,22 @@ export const RiceCreditProvider = ({ children }) => {
       payments: initialPayments,
       profit: data.amount - (data.cost || 0),
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      isDeleted: false
     }
     setTransactions(prev => [...prev, newTransaction])
     showNotification('Rice credit transaction added!', 'success')
     return newTransaction
   }
 
-  // Update transaction
   const updateTransaction = (id, data) => {
     setTransactions(prev => prev.map(transaction => {
       if (transaction.id === id) {
-        // Recalculate with new data
         const totalAmount = data.amount || transaction.amount
         const downPayment = data.downPayment || transaction.downPayment || 0
         const numberOfPayments = data.numberOfPayments || transaction.numberOfPayments || 1
         const remainingBalance = totalAmount - downPayment
         
-        // Keep existing payments, update down payment if changed
         let payments = transaction.payments || []
         if (downPayment > 0 && payments.length === 0) {
           payments = [{
@@ -103,7 +99,6 @@ export const RiceCreditProvider = ({ children }) => {
     showNotification('Transaction updated!', 'success')
   }
 
-  // Delete transaction (soft delete)
   const deleteTransaction = (id) => {
     setTransactions(prev => prev.map(transaction =>
       transaction.id === id
@@ -113,7 +108,6 @@ export const RiceCreditProvider = ({ children }) => {
     showNotification('Transaction moved to trash', 'warning')
   }
 
-  // Restore transaction
   const restoreTransaction = (id) => {
     setTransactions(prev => prev.map(transaction =>
       transaction.id === id
@@ -123,13 +117,11 @@ export const RiceCreditProvider = ({ children }) => {
     showNotification('Transaction restored!', 'success')
   }
 
-  // Permanent delete
   const permanentDeleteTransaction = (id) => {
     setTransactions(prev => prev.filter(transaction => transaction.id !== id))
     showNotification('Transaction permanently deleted', 'error')
   }
 
-  // Add payment
   const addPayment = (id, amount) => {
     setTransactions(prev => prev.map(transaction => {
       if (transaction.id === id) {
@@ -141,6 +133,15 @@ export const RiceCreditProvider = ({ children }) => {
           type: 'payment'
         }]
         const status = newBalance <= 0 ? 'completed' : transaction.status
+        
+        console.log('Adding payment:', {
+          id,
+          amount,
+          oldBalance: transaction.remainingBalance,
+          newBalance,
+          totalPayments: payments.reduce((sum, p) => sum + p.amount, 0)
+        })
+        
         return {
           ...transaction,
           payments,
@@ -154,17 +155,14 @@ export const RiceCreditProvider = ({ children }) => {
     showNotification(`Payment of ₱${amount.toLocaleString()} recorded!`, 'success')
   }
 
-  // Get active transactions
   const getActiveTransactions = () => {
     return transactions.filter(t => !t.isDeleted)
   }
 
-  // Get deleted transactions
   const getDeletedTransactions = () => {
     return transactions.filter(t => t.isDeleted)
   }
 
-  // Calculate totals
   const getTotals = () => {
     const active = getActiveTransactions()
     const totalAmount = active.reduce((sum, t) => sum + t.amount, 0)
