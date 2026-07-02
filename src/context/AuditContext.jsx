@@ -4,8 +4,15 @@ const AuditContext = createContext()
 
 export const useAudit = () => {
   const context = useContext(AuditContext)
+  // Return dummy functions instead of throwing error
   if (!context) {
-    throw new Error('useAudit must be used within AuditProvider')
+    return {
+      logs: [],
+      loading: false,
+      addLog: () => {},
+      getLogs: () => [],
+      clearLogs: () => {}
+    }
   }
   return context
 }
