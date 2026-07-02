@@ -7,9 +7,17 @@ import {
   Package, 
   ShoppingBag,
   Calendar,
-  AlertCircle
+  CreditCard,
+  Wallet as WalletIcon
 } from 'lucide-react'
 import { useNotification } from '../../context/NotificationContext'
+import { useCustomers } from '../../context/CustomerContext'
+import { useRiceCredit } from '../../context/RiceCreditContext'
+import { useCashLoans } from '../../context/CashLoanContext'
+import { useBreadOrders } from '../../context/BreadOrderContext'
+import { useIncome } from '../../context/IncomeContext'
+import { useExpenses } from '../../context/ExpenseContext'
+import { usePayables } from '../../context/PayableContext'
 import StatCard from '../../components/dashboard/StatCard'
 import RevenueChart from '../../components/dashboard/RevenueChart'
 import RecentTransactions from '../../components/dashboard/RecentTransactions'
@@ -18,60 +26,117 @@ import QuickActions from '../../components/dashboard/QuickActions'
 const Dashboard = () => {
   const { showNotification } = useNotification()
   const [loading, setLoading] = useState(true)
+  const [recentData, setRecentData] = useState([])
+  const [chartData, setChartData] = useState({ labels: [], values: [] })
 
-  // Mock data - will be replaced with real data later
-  const stats = [
-    {
-      title: 'Total Revenue',
-      value: '$45,231.89',
-      change: '+20.1%',
-      icon: TrendingUp,
-      trend: 'up',
-      color: 'text-green-500'
-    },
-    {
-      title: 'Total Expenses',
-      value: '$12,543.00',
-      change: '-5.2%',
-      icon: TrendingDown,
-      trend: 'down',
-      color: 'text-red-500'
-    },
-    {
-      title: 'Active Customers',
-      value: '2,345',
-      change: '+12.5%',
-      icon: Users,
-      trend: 'up',
-      color: 'text-blue-500'
-    },
-    {
-      title: 'Wallet Balance',
-      value: '$32,688.89',
-      change: '+8.7%',
-      icon: DollarSign,
-      trend: 'up',
-      color: 'text-yellow-500'
-    }
-  ]
+  // Get data from all contexts
+  const { customers } = useCustomers()
+  const { transactions: riceCreditTransactions } = useRiceCredit()
+  const { loans: cashLoans } = useCashLoans()
+  const { orders: breadOrders } = useBreadOrders()
+  const { incomes } = useIncome()
+  const { expenses } = useExpenses()
+  const { payables } = usePayables()
 
-  const recentData = [
-    { id: 1, customer: 'Juan Dela Cruz', amount: 2500, status: 'Paid', date: '2024-01-15' },
-    { id: 2, customer: 'Maria Santos', amount: 1800, status: 'Pending', date: '2024-01-14' },
-    { id: 3, customer: 'Pedro Reyes', amount: 3200, status: 'Overdue', date: '2024-01-13' },
-    { id: 4, customer: 'Ana Garcia', amount: 1500, status: 'Paid', date: '2024-01-12' },
-    { id: 5, customer: 'Ramon Cruz', amount: 2100, status: 'Pending', date: '2024-01-11' }
-  ]
+  // Calculate totals
+  const totalCustomers = customers?.length || 0
+  
+  const totalRiceCredit = riceCreditTransactions?.reduce((sum, t) => sum + (t.totalSellingPrice || t.amount || 0), 0) || 0
+  const totalBreadOrders = breadOrders?.reduce((sum, o) => sum + (o.totalSellingPrice || 0), 0) || 0
+  const totalCashLoans = cashLoans?.reduce((sum, l) => sum + (l.totalPayable || l.principal || 0), 0) || 0
+  
+  const totalRevenue = totalRiceCredit + totalBreadOrders + totalCashLoans
+  const totalIncome = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
+  const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+  const totalPayablesUnpaid = payables?.filter(p => p.status !== 'paid').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+  
+  const netProfit = (totalRevenue + totalIncome) - totalExpenses
+  const cashOnHand = netProfit - totalPayablesUnpaid
 
+  // Get active counts
+  const activeRiceCredits = riceCreditTransactions?.filter(t => t.status === 'active').length || 0
+  const activeCashLoans = cashLoans?.filter(l => l.status === 'active').length || 0
+  const pendingOrders = breadOrders?.filter(o => o.status === 'pending').length || 0
+
+  // Prepare recent transactions
   useEffect(() => {
+    const allTransactions = []
+
+    // Rice Credit transactions
+    riceCreditTransactions?.forEach(t => {
+      if (!t.isDeleted) {
+        allTransactions.push({
+          type: 'rice-credit',
+          customer: t.customerName || 'Unknown',
+          amount: t.amount || 0,
+          status: t.status || 'active',
+          date: t.createdAt || new Date().toISOString()
+        })
+      }
+    })
+
+    // Cash Loans
+    cashLoans?.forEach(l => {
+      if (!l.isDeleted) {
+        allTransactions.push({
+          type: 'cash-loan',
+          customer: l.customerName || 'Unknown',
+          amount: l.principal || 0,
+          status: l.status || 'active',
+          date: l.createdAt || new Date().toISOString()
+        })
+      }
+    })
+
+    // Bread Orders
+    breadOrders?.forEach(o => {
+      if (!o.isDeleted) {
+        allTransactions.push({
+          type: 'bread-order',
+          customer: o.customerName || 'Unknown',
+          amount: o.totalSellingPrice || 0,
+          status: o.status || 'pending',
+          date: o.createdAt || new Date().toISOString()
+        })
+      }
+    })
+
+    // Sort by date (most recent first)
+    allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date))
+    setRecentData(allTransactions)
+
+    // Prepare chart data (last 6 months)
+    const months = []
+    const values = []
+    const now = new Date()
+    
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthLabel = month.toLocaleString('default', { month: 'short' })
+      months.push(monthLabel)
+      
+      // Filter transactions for this month
+      const monthStart = new Date(month.getFullYear(), month.getMonth(), 1)
+      const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0)
+      
+      const monthTotal = allTransactions.filter(t => {
+        const date = new Date(t.date)
+        return date >= monthStart && date <= monthEnd
+      }).reduce((sum, t) => sum + (t.amount || 0), 0)
+      
+      values.push(monthTotal)
+    }
+    
+    setChartData({ labels: months, values: values })
+
     // Simulate loading
     const timer = setTimeout(() => {
       setLoading(false)
-      showNotification('Dashboard loaded successfully!', 'success')
-    }, 1000)
+      showNotification('Dashboard loaded!', 'success')
+    }, 500)
 
     return () => clearTimeout(timer)
-  }, [])
+  }, [riceCreditTransactions, cashLoans, breadOrders, incomes, expenses, payables])
 
   if (loading) {
     return (
@@ -103,6 +168,37 @@ const Dashboard = () => {
     )
   }
 
+  const stats = [
+    {
+      title: 'Total Revenue',
+      value: `₱${totalRevenue.toLocaleString()}`,
+      icon: TrendingUp,
+      color: 'text-blue-500',
+      subtitle: `${activeRiceCredits + activeCashLoans} active credits/loans`
+    },
+    {
+      title: 'Net Profit',
+      value: `₱${netProfit.toLocaleString()}`,
+      icon: WalletIcon,
+      color: netProfit >= 0 ? 'text-green-500' : 'text-red-500',
+      subtitle: `Cash on Hand: ₱${cashOnHand.toLocaleString()}`
+    },
+    {
+      title: 'Total Customers',
+      value: totalCustomers.toString(),
+      icon: Users,
+      color: 'text-purple-500',
+      subtitle: `${pendingOrders} pending orders`
+    },
+    {
+      title: 'Unpaid Payables',
+      value: `₱${totalPayablesUnpaid.toLocaleString()}`,
+      icon: CreditCard,
+      color: 'text-red-500',
+      subtitle: `${payables?.filter(p => p.status !== 'paid').length || 0} bills/loans due`
+    }
+  ]
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -118,10 +214,7 @@ const Dashboard = () => {
         <div className="flex items-center gap-3">
           <button className="btn-secondary flex items-center gap-2">
             <Calendar className="w-4 h-4" />
-            Jan 2024
-          </button>
-          <button className="btn-primary">
-            Export Report
+            {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
           </button>
         </div>
       </div>
@@ -133,10 +226,10 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Charts and Activity */}
+      {/* Charts and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <RevenueChart />
+          <RevenueChart data={chartData} label="Monthly Revenue" />
         </div>
         <div>
           <QuickActions />
