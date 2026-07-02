@@ -55,7 +55,7 @@ const Login = () => {
             <span className="text-white text-3xl font-bold">E</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            ERP Dashboard
+            RX Dashboard
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Sign in to your account
