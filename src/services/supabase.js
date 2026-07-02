@@ -5,7 +5,6 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-// Test connection function
 export const testConnection = async () => {
   try {
     const { data, error } = await supabase.from('customers').select('count', { count: 'exact' })
