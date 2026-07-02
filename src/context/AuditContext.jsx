@@ -4,7 +4,7 @@ const AuditContext = createContext()
 
 export const useAudit = () => {
   const context = useContext(AuditContext)
-  // Return dummy functions instead of throwing error
+  // Return dummy functions para hindi mag-error
   if (!context) {
     return {
       logs: [],
