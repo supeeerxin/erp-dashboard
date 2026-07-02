@@ -93,9 +93,16 @@ const RiceCredit = () => {
     setEditingTransaction(null)
   }
 
-  // Calculate total payments
+  // Calculate total payments including down payment
   const getTotalPayments = (transaction) => {
-    return transaction.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+    const payments = transaction.payments || []
+    return payments.reduce((sum, p) => sum + p.amount, 0)
+  }
+
+  // Calculate if fully paid
+  const isFullyPaid = (transaction) => {
+    const totalPaid = getTotalPayments(transaction)
+    return totalPaid >= transaction.amount
   }
 
   return (
@@ -208,6 +215,7 @@ const RiceCredit = () => {
                   const totalPaid = getTotalPayments(transaction)
                   const downPayment = transaction.downPayment || 0
                   const numberOfPayments = transaction.numberOfPayments || 1
+                  const isPaid = isFullyPaid(transaction)
                   
                   return (
                     <tr key={transaction.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -238,14 +246,18 @@ const RiceCredit = () => {
                         )}
                       </td>
                       <td className="table-cell">
-                        {getStatusBadge(transaction.status)}
+                        {isPaid ? (
+                          <span className="badge badge-success">Paid</span>
+                        ) : (
+                          getStatusBadge(transaction.status)
+                        )}
                         {transaction.isDeleted && (
                           <span className="badge badge-danger ml-1">Deleted</span>
                         )}
                       </td>
                       <td className="table-cell text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {!transaction.isDeleted && transaction.status !== 'completed' && (
+                          {!transaction.isDeleted && !isPaid && transaction.status !== 'completed' && (
                             <button
                               onClick={() => handlePayment(transaction)}
                               className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
