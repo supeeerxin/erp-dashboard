@@ -1,181 +1,215 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { generateOrderNumber } from '../utils/transactionUtils'
+import { useBreadProducts } from './BreadProductContext'
 
-const BreadProductContext = createContext()
+const BreadOrderContext = createContext()
 
-export const useBreadProducts = () => {
-  const context = useContext(BreadProductContext)
+export const useBreadOrders = () => {
+  const context = useContext(BreadOrderContext)
   if (!context) {
-    throw new Error('useBreadProducts must be used within BreadProductProvider')
+    throw new Error('useBreadOrders must be used within BreadOrderProvider')
   }
   return context
 }
 
-export const BreadProductProvider = ({ children }) => {
-  const [products, setProducts] = useState([])
+export const BreadOrderProvider = ({ children }) => {
+  const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
-
-  // Default products with inventory
-  const defaultProducts = [
-    { 
-      id: 1, 
-      name: 'Pandesal', 
-      sellingPricePerBox: 250, 
-      piecesPerBox: 24, 
-      sellingPricePerPiece: 10.42,
-      costPerBox: 180,
-      costPerPiece: 7.50,
-      stockBoxes: 20,
-      stockPieces: 0
-    },
-    { 
-      id: 2, 
-      name: 'Monay', 
-      sellingPricePerBox: 300, 
-      piecesPerBox: 24, 
-      sellingPricePerPiece: 12.50,
-      costPerBox: 220,
-      costPerPiece: 9.17,
-      stockBoxes: 15,
-      stockPieces: 0
-    },
-    { 
-      id: 3, 
-      name: 'Ensaymada', 
-      sellingPricePerBox: 400, 
-      piecesPerBox: 20, 
-      sellingPricePerPiece: 20.00,
-      costPerBox: 300,
-      costPerPiece: 15.00,
-      stockBoxes: 10,
-      stockPieces: 0
-    },
-    { 
-      id: 4, 
-      name: 'Pan de Coco', 
-      sellingPricePerBox: 350, 
-      piecesPerBox: 24, 
-      sellingPricePerPiece: 14.58,
-      costPerBox: 260,
-      costPerPiece: 10.83,
-      stockBoxes: 12,
-      stockPieces: 0
-    },
-    { 
-      id: 5, 
-      name: 'Spanish Bread', 
-      sellingPricePerBox: 380, 
-      piecesPerBox: 20, 
-      sellingPricePerPiece: 19.00,
-      costPerBox: 280,
-      costPerPiece: 14.00,
-      stockBoxes: 10,
-      stockPieces: 0
-    },
-  ]
+  const { deductInventory, restoreInventory } = useBreadProducts()
 
   useEffect(() => {
-    const saved = localStorage.getItem('breadProducts')
+    const saved = localStorage.getItem('breadOrders')
     if (saved) {
-      setProducts(JSON.parse(saved))
-    } else {
-      setProducts(defaultProducts)
-      localStorage.setItem('breadProducts', JSON.stringify(defaultProducts))
+      setOrders(JSON.parse(saved))
     }
     setLoading(false)
   }, [])
 
   useEffect(() => {
     if (!loading) {
-      localStorage.setItem('breadProducts', JSON.stringify(products))
+      localStorage.setItem('breadOrders', JSON.stringify(orders))
     }
-  }, [products, loading])
+  }, [orders, loading])
 
-  const addProduct = (data) => {
-    const newProduct = {
+  const addOrder = (data) => {
+    // Check if enough stock
+    const product = useBreadProducts().getProduct(data.productId)
+    if (product) {
+      const availableBoxes = product.stockBoxes || 0
+      const availablePieces = product.stockPieces || 0
+      
+      if ((data.boxes || 0) > availableBoxes) {
+        showNotification(`Not enough boxes! Available: ${availableBoxes}`, 'error')
+        return null
+      }
+      if ((data.pieces || 0) > availablePieces) {
+        showNotification(`Not enough pieces! Available: ${availablePieces}`, 'error')
+        return null
+      }
+    }
+
+    // Calculate totals
+    const totalSellingPrice = (data.boxes || 0) * (data.sellingPricePerBox || 0) + (data.pieces || 0) * (data.sellingPricePerPiece || 0)
+    const totalCost = (data.boxes || 0) * (data.costPerBox || 0) + (data.pieces || 0) * (data.costPerPiece || 0)
+    const profit = totalSellingPrice - totalCost
+
+    // Deduct from inventory
+    deductInventory(data.productId, data.boxes || 0, data.pieces || 0)
+
+    const newOrder = {
       id: Date.now(),
+      transactionNumber: generateOrderNumber(),
       ...data,
-      stockBoxes: data.stockBoxes || 0,
-      stockPieces: data.stockPieces || 0,
-      createdAt: new Date().toISOString()
+      totalSellingPrice: totalSellingPrice,
+      totalCost: totalCost,
+      profit: profit,
+      status: data.status || 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isDeleted: false
     }
-    setProducts(prev => [...prev, newProduct])
-    showNotification('Product added!', 'success')
-    return newProduct
+    setOrders(prev => [...prev, newOrder])
+    showNotification(`Order ${newOrder.transactionNumber} created!`, 'success')
+    return newOrder
   }
 
-  const updateProduct = (id, data) => {
-    setProducts(prev => prev.map(product =>
-      product.id === id
-        ? { ...product, ...data }
-        : product
+  const updateOrder = (id, data) => {
+    setOrders(prev => prev.map(order => {
+      if (order.id === id) {
+        // If status is being updated to completed (paid)
+        if (data.status === 'completed' && order.status !== 'completed') {
+          showNotification(`Order ${order.transactionNumber} marked as paid!`, 'success')
+        }
+        
+        // If status is being updated to delivered
+        if (data.status === 'delivered' && order.status !== 'delivered') {
+          showNotification(`Order ${order.transactionNumber} delivered!`, 'success')
+        }
+
+        const updated = { ...order, ...data, updatedAt: new Date().toISOString() }
+        
+        // Recalculate totals if quantity or price changed
+        const boxes = data.boxes !== undefined ? data.boxes : order.boxes
+        const pieces = data.pieces !== undefined ? data.pieces : order.pieces
+        const sellingPricePerBox = data.sellingPricePerBox !== undefined ? data.sellingPricePerBox : order.sellingPricePerBox
+        const sellingPricePerPiece = data.sellingPricePerPiece !== undefined ? data.sellingPricePerPiece : order.sellingPricePerPiece
+        const costPerBox = data.costPerBox !== undefined ? data.costPerBox : order.costPerBox
+        const costPerPiece = data.costPerPiece !== undefined ? data.costPerPiece : order.costPerPiece
+        
+        updated.totalSellingPrice = (boxes || 0) * (sellingPricePerBox || 0) + (pieces || 0) * (sellingPricePerPiece || 0)
+        updated.totalCost = (boxes || 0) * (costPerBox || 0) + (pieces || 0) * (costPerPiece || 0)
+        updated.profit = updated.totalSellingPrice - updated.totalCost
+        return updated
+      }
+      return order
+    }))
+    showNotification('Order updated!', 'success')
+  }
+
+  const deleteOrder = (id) => {
+    // Restore inventory before soft delete
+    const order = orders.find(o => o.id === id)
+    if (order && !order.isDeleted) {
+      restoreInventory(order.productId, order.boxes || 0, order.pieces || 0)
+    }
+    
+    setOrders(prev => prev.map(order =>
+      order.id === id
+        ? { ...order, isDeleted: true, deletedAt: new Date().toISOString() }
+        : order
     ))
-    showNotification('Product updated!', 'success')
+    showNotification('Order moved to trash', 'warning')
   }
 
-  const deleteProduct = (id) => {
-    setProducts(prev => prev.filter(product => product.id !== id))
-    showNotification('Product deleted!', 'success')
+  const restoreOrder = (id) => {
+    // Deduct inventory again when restoring
+    const order = orders.find(o => o.id === id)
+    if (order && order.isDeleted) {
+      deductInventory(order.productId, order.boxes || 0, order.pieces || 0)
+    }
+    
+    setOrders(prev => prev.map(order =>
+      order.id === id
+        ? { ...order, isDeleted: false, deletedAt: null }
+        : order
+    ))
+    showNotification('Order restored!', 'success')
   }
 
-  const getProduct = (id) => {
-    return products.find(product => product.id === id)
+  const permanentDeleteOrder = (id) => {
+    setOrders(prev => prev.filter(order => order.id !== id))
+    showNotification('Order permanently deleted', 'error')
   }
 
-  // Deduct inventory when order is placed
-  const deductInventory = (productId, boxes, pieces) => {
-    setProducts(prev => prev.map(product => {
-      if (product.id === productId) {
-        const newStockBoxes = Math.max(0, (product.stockBoxes || 0) - (boxes || 0))
-        const newStockPieces = Math.max(0, (product.stockPieces || 0) - (pieces || 0))
+  const updateOrderStatus = (id, status) => {
+    setOrders(prev => prev.map(order => {
+      if (order.id === id) {
+        // If status is being updated to completed (paid)
+        if (status === 'completed' && order.status !== 'completed') {
+          showNotification(`Order ${order.transactionNumber} marked as paid!`, 'success')
+        }
         
-        // Check low stock
-        if (newStockBoxes <= 5 && newStockBoxes > 0) {
-          showNotification(`Low stock: ${product.name} - only ${newStockBoxes} boxes left!`, 'warning')
-        }
-        if (newStockPieces <= 10 && newStockPieces > 0) {
-          showNotification(`Low stock: ${product.name} - only ${newStockPieces} pieces left!`, 'warning')
+        // If status is being updated to delivered
+        if (status === 'delivered' && order.status !== 'delivered') {
+          showNotification(`Order ${order.transactionNumber} delivered!`, 'success')
         }
         
-        return {
-          ...product,
-          stockBoxes: newStockBoxes,
-          stockPieces: newStockPieces
-        }
+        return { ...order, status, updatedAt: new Date().toISOString() }
       }
-      return product
+      return order
     }))
   }
 
-  // Restore inventory when order is cancelled/deleted
-  const restoreInventory = (productId, boxes, pieces) => {
-    setProducts(prev => prev.map(product => {
-      if (product.id === productId) {
-        return {
-          ...product,
-          stockBoxes: (product.stockBoxes || 0) + (boxes || 0),
-          stockPieces: (product.stockPieces || 0) + (pieces || 0)
-        }
-      }
-      return product
-    }))
+  const getActiveOrders = () => {
+    return orders.filter(o => !o.isDeleted)
+  }
+
+  const getDeletedOrders = () => {
+    return orders.filter(o => o.isDeleted)
+  }
+
+  const getTotals = () => {
+    const active = getActiveOrders()
+    const totalOrders = active.length
+    const totalSelling = active.reduce((sum, o) => sum + (o.totalSellingPrice || 0), 0)
+    const totalCost = active.reduce((sum, o) => sum + (o.totalCost || 0), 0)
+    const totalProfit = active.reduce((sum, o) => sum + (o.profit || 0), 0)
+    const pending = active.filter(o => o.status === 'pending').length
+    const delivered = active.filter(o => o.status === 'delivered').length
+    const completed = active.filter(o => o.status === 'completed').length
+
+    return {
+      totalOrders,
+      totalSelling,
+      totalCost,
+      totalProfit,
+      pending,
+      delivered,
+      completed
+    }
   }
 
   const value = {
-    products,
+    orders: getActiveOrders(),
+    deletedOrders: getDeletedOrders(),
+    allOrders: orders,
     loading,
-    addProduct,
-    updateProduct,
-    deleteProduct,
-    getProduct,
-    deductInventory,
-    restoreInventory
+    addOrder,
+    updateOrder,
+    deleteOrder,
+    restoreOrder,
+    permanentDeleteOrder,
+    updateOrderStatus,
+    getTotals,
+    getActiveOrders,
+    getDeletedOrders
   }
 
   return (
-    <BreadProductContext.Provider value={value}>
+    <BreadOrderContext.Provider value={value}>
       {children}
-    </BreadProductContext.Provider>
+    </BreadOrderContext.Provider>
   )
 }
