@@ -38,7 +38,7 @@ export const AuditProvider = ({ children }) => {
       details: typeof details === 'object' ? JSON.stringify(details) : details,
       createdAt: new Date().toISOString()
     }
-    setLogs(prev => [newLog, ...prev].slice(0, 1000)) // Keep last 1000 logs
+    setLogs(prev => [newLog, ...prev].slice(0, 1000))
     return newLog
   }
 
