@@ -19,7 +19,6 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
     notes: ''
   })
 
-  // Auto-computed values from product
   const [selectedProduct, setSelectedProduct] = useState(null)
 
   useEffect(() => {
@@ -99,37 +98,27 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
       return
     }
 
-    // Check stock availability
-    if (selectedProduct) {
-      const boxes = parseInt(formData.boxes) || 0
-      const pieces = parseInt(formData.pieces) || 0
-      
-      if (boxes > (selectedProduct.stockBoxes || 0)) {
-        alert(`Not enough boxes! Available: ${selectedProduct.stockBoxes}`)
-        return
-      }
-      if (pieces > (selectedProduct.stockPieces || 0)) {
-        alert(`Not enough pieces! Available: ${selectedProduct.stockPieces}`)
-        return
-      }
+    if (!selectedProduct) {
+      alert('Please select a valid product')
+      return
     }
 
     onSave({
       ...formData,
       boxes: parseInt(formData.boxes) || 0,
       pieces: parseInt(formData.pieces) || 0,
-      // These come from product
-      sellingPricePerBox: selectedProduct?.sellingPricePerBox || 0,
-      sellingPricePerPiece: selectedProduct?.sellingPricePerPiece || 0,
-      costPerBox: selectedProduct?.costPerBox || 0,
-      costPerPiece: selectedProduct?.costPerPiece || 0
+      productName: selectedProduct.name,
+      sellingPricePerBox: selectedProduct.sellingPricePerBox || 0,
+      sellingPricePerPiece: selectedProduct.sellingPricePerPiece || 0,
+      costPerBox: selectedProduct.costPerBox || 0,
+      costPerPiece: selectedProduct.costPerPiece || 0,
+      productId: parseInt(formData.productId)
     })
     onClose()
   }
 
   if (!isOpen) return null
 
-  // Compute values
   const boxes = parseInt(formData.boxes) || 0
   const pieces = parseInt(formData.pieces) || 0
   const sellingPricePerBox = selectedProduct?.sellingPricePerBox || 0
@@ -197,14 +186,14 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
             {selectedProduct && (
               <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
                 <p className="text-gray-600 dark:text-gray-400">
-                  Selling Price: <span className="font-medium text-primary-500">₱{selectedProduct.sellingPricePerBox?.toFixed(2) || 0}/box</span>
+                  Selling: <span className="font-medium text-primary-500">₱{selectedProduct.sellingPricePerBox?.toFixed(2) || 0}/box</span>
                   <span className="text-gray-400 ml-1">({selectedProduct.piecesPerBox || 24} pcs)</span>
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
                   Per Piece: <span className="font-medium text-primary-500">₱{selectedProduct.sellingPricePerPiece?.toFixed(2) || 0}</span>
                 </p>
                 <p className={`text-gray-600 dark:text-gray-400 ${(selectedProduct.stockBoxes || 0) <= 5 ? 'text-red-500' : ''}`}>
-                  Available Stock: {selectedProduct.stockBoxes || 0} boxes | {selectedProduct.stockPieces || 0} pieces
+                  Available: {selectedProduct.stockBoxes || 0} boxes | {selectedProduct.stockPieces || 0} pieces
                 </p>
               </div>
             )}
@@ -223,11 +212,6 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
                 min="0"
                 step="1"
               />
-              {selectedProduct && selectedProduct.stockBoxes > 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Max: {selectedProduct.stockBoxes} boxes
-                </p>
-              )}
             </div>
             <div>
               <label className="label">Pieces</label>
@@ -241,11 +225,6 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
                 min="0"
                 step="1"
               />
-              {selectedProduct && selectedProduct.stockPieces > 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Max: {selectedProduct.stockPieces} pieces
-                </p>
-              )}
             </div>
           </div>
 
