@@ -14,16 +14,17 @@ import {
   X,
   LogOut,
   CreditCard,
-  FileText
+  FileText,
+  Calendar
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { Calendar as CalendarIcon } from 'lucide-react'
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { logout } = useAuth()
 
   const menuItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/due-dates', icon: Calendar, label: 'Due Dates' },
     { path: '/rice-credit', icon: Package, label: 'Rice Credit' },
     { path: '/cash-loans', icon: DollarSign, label: 'Cash Loans' },
     { path: '/bread-orders', icon: ShoppingBag, label: 'Bread Orders' },
@@ -34,7 +35,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/wallet', icon: Wallet, label: 'Wallet' },
     { path: '/reports', icon: BarChart3, label: 'Reports' },
     { path: '/audit-log', icon: FileText, label: 'Audit Log' },
-    { path: '/due-dates', icon: CalendarIcon, label: 'Due Dates' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ]
 
