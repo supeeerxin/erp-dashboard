@@ -16,14 +16,13 @@ import {
   CreditCard,
   FileText,
   Calendar,
-  Car 
+  Car
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { logout } = useAuth()
 
-  // Grouped menu items with separators
   const menuGroups = [
     {
       items: [
@@ -33,6 +32,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     },
     {
       items: [
+        { path: '/vehicles', icon: Car, label: 'Vehicles' },  // <-- ADDED
         { path: '/rice-credit', icon: Package, label: 'Rice Credit' },
         { path: '/cash-loans', icon: DollarSign, label: 'Cash Loans' },
         { path: '/bread-orders', icon: ShoppingBag, label: 'Bread Orders' },
@@ -55,11 +55,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       ]
     }
   ]
-{
-  items: [
-    { path: '/vehicles', icon: Car, label: 'Vehicles' },
-  ]
-}
+
   const handleLogout = () => {
     logout()
   }
@@ -84,9 +80,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">RX</span>
+              <span className="text-white font-bold text-lg">E</span>
             </div>
-            <span className="text-lg font-bold text-gray-900 dark:text-white">RX System</span>
+            <span className="text-lg font-bold text-gray-900 dark:text-white">ERP System</span>
           </div>
           <button 
             onClick={() => setIsOpen(false)}
