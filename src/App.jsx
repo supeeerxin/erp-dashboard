@@ -42,8 +42,8 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <NotificationProvider>
+      <NotificationProvider>
+        <AuthProvider>
           <AuditProvider>
             <CustomerProvider>
               <RiceCreditProvider>
@@ -93,8 +93,8 @@ function App() {
               </RiceCreditProvider>
             </CustomerProvider>
           </AuditProvider>
-        </NotificationProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </NotificationProvider>
     </ThemeProvider>
   )
 }
