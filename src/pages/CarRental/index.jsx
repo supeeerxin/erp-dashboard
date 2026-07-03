@@ -17,6 +17,8 @@ const CarRental = () => {
   const [editingVehicle, setEditingVehicle] = useState(null)
   const [editingDriver, setEditingDriver] = useState(null)
   const [editingRental, setEditingRental] = useState(null)
+  const [selectedDate, setSelectedDate] = useState(null)
+const [selectedDayRentals, setSelectedDayRentals] = useState([])
 
   const { vehicles, loading: vehiclesLoading, addVehicle, updateVehicle, deleteVehicle } = useVehicles()
   const { drivers, loading: driversLoading, addDriver, updateDriver, deleteDriver } = useDrivers()
@@ -340,18 +342,39 @@ const CarRental = () => {
           </div>
         )
 
-     case 'schedule':
+    case 'schedule':
+  // Get current month data
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay()
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+  
+  // Get rentals for current month
+  const monthRentals = rentals.filter(r => {
+    const start = new Date(r.start_date)
+    const end = r.end_date ? new Date(r.end_date) : start
+    return (start.getMonth() === currentMonth || end.getMonth() === currentMonth) &&
+           (start.getFullYear() === currentYear || end.getFullYear() === currentYear)
+  })
+
+  // Get rentals for a specific day
+  const getRentalsForDay = (day) => {
+    const date = new Date(currentYear, currentMonth, day)
+    return monthRentals.filter(r => {
+      const start = new Date(r.start_date)
+      const end = r.end_date ? new Date(r.end_date) : start
+      return date >= start && date <= end
+    })
+  }
+
   return (
     <div className="space-y-4">
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+          {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
         </h3>
-        <div className="flex gap-2">
-          <button className="btn-secondary text-sm px-3 py-1">Previous</button>
-          <button className="btn-secondary text-sm px-3 py-1">Next</button>
-        </div>
       </div>
 
       {/* Calendar Grid */}
@@ -363,20 +386,32 @@ const CarRental = () => {
             </div>
           ))}
           
-          {/* Calendar days - sample data */}
-          {[...Array(35)].map((_, i) => {
+          {/* Empty days before first day of month */}
+          {[...Array(firstDay)].map((_, i) => (
+            <div key={`empty-${i}`} className="min-h-20 rounded-lg p-2 bg-gray-50 dark:bg-gray-800/30" />
+          ))}
+          
+          {/* Calendar days */}
+          {[...Array(daysInMonth)].map((_, i) => {
             const day = i + 1
-            const hasRental = day === 5 || day === 12 || day === 20 // Sample: may naka-sched
-            const isToday = day === new Date().getDate()
+            const dayRentals = getRentalsForDay(day)
+            const hasRental = dayRentals.length > 0
+            const isToday = day === now.getDate() && currentMonth === now.getMonth() && currentYear === now.getFullYear()
             
             return (
               <div 
-                key={i} 
+                key={day} 
                 className={`
-                  min-h-20 rounded-lg p-2 border border-gray-200 dark:border-gray-700
+                  min-h-20 rounded-lg p-2 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all
                   ${isToday ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500' : ''}
-                  ${hasRental ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500' : ''}
+                  ${hasRental ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}
                 `}
+                onClick={() => {
+                  if (hasRental) {
+                    setSelectedDate(new Date(currentYear, currentMonth, day))
+                    setSelectedDayRentals(dayRentals)
+                  }
+                }}
               >
                 <div className="flex justify-between items-start">
                   <span className={`text-sm font-medium ${isToday ? 'text-primary-600' : ''}`}>
@@ -384,18 +419,25 @@ const CarRental = () => {
                   </span>
                   {hasRental && (
                     <span className="text-xs bg-yellow-500 text-white rounded-full px-1.5 py-0.5">
-                      2
+                      {dayRentals.length}
                     </span>
                   )}
                 </div>
                 {hasRental && (
                   <div className="mt-1">
-                    <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
-                      🚗 Car 1 - Juan
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      🚗 Car 2 - Maria
-                    </p>
+                    {dayRentals.slice(0, 2).map((rental, idx) => {
+                      const vehicle = vehicles.find(v => v.id === rental.vehicle_id)
+                      return (
+                        <p key={idx} className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                          🚗 {vehicle?.brand || 'Car'} - {rental.driver_name?.split(' ')[0] || 'Driver'}
+                        </p>
+                      )
+                    })}
+                    {dayRentals.length > 2 && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        +{dayRentals.length - 2} more
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -421,36 +463,48 @@ const CarRental = () => {
       </div>
 
       {/* Selected Day Details */}
-      <div className="card">
-        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-          📅 Schedule Details
-        </h4>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Toyota Vios - ABC-1234</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Driver: Juan Dela Cruz</p>
-            </div>
-            <div className="text-right">
-              <span className="badge badge-warning">Active</span>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Jul 5 - Jul 10</p>
-            </div>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Toyota Innova - XYZ-5678</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Driver: Maria Santos</p>
-            </div>
-            <div className="text-right">
-              <span className="badge badge-warning">Active</span>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Jul 5 - Jul 8</p>
-            </div>
+      {selectedDate && selectedDayRentals && selectedDayRentals.length > 0 && (
+        <div className="card">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            📅 {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </h4>
+          <div className="space-y-2">
+            {selectedDayRentals.map((rental) => {
+              const vehicle = vehicles.find(v => v.id === rental.vehicle_id)
+              return (
+                <div key={rental.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {vehicle?.brand} {vehicle?.model} - {rental.vehicle_plate}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Driver: {rental.driver_name}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`badge ${rental.status === 'active' ? 'badge-warning' : rental.status === 'completed' ? 'badge-success' : 'badge-danger'}`}>
+                      {rental.status}
+                    </span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {rental.start_date} → {rental.end_date || 'Ongoing'}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-          Click on a date to view schedule details
-        </p>
-      </div>
+      )}
+
+      {monthRentals.length === 0 && (
+        <div className="card">
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <Calendar className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+            <p className="text-sm">No rentals scheduled this month</p>
+            <p className="text-xs mt-1">Create a rental to see it on the calendar</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 
