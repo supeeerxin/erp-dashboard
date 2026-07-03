@@ -340,18 +340,119 @@ const CarRental = () => {
           </div>
         )
 
-      case 'schedule':
-        return (
-          <div className="card">
-            <div className="empty-state">
-              <LayoutDashboard className="empty-state-icon" />
-              <p className="empty-state-text">Schedule View</p>
-              <p className="empty-state-subtext">
-                View vehicle availability in calendar format
-              </p>
+     case 'schedule':
+  return (
+    <div className="space-y-4">
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+        </h3>
+        <div className="flex gap-2">
+          <button className="btn-secondary text-sm px-3 py-1">Previous</button>
+          <button className="btn-secondary text-sm px-3 py-1">Next</button>
+        </div>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="card">
+        <div className="grid grid-cols-7 gap-1">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 py-2">
+              {day}
+            </div>
+          ))}
+          
+          {/* Calendar days - sample data */}
+          {[...Array(35)].map((_, i) => {
+            const day = i + 1
+            const hasRental = day === 5 || day === 12 || day === 20 // Sample: may naka-sched
+            const isToday = day === new Date().getDate()
+            
+            return (
+              <div 
+                key={i} 
+                className={`
+                  min-h-20 rounded-lg p-2 border border-gray-200 dark:border-gray-700
+                  ${isToday ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500' : ''}
+                  ${hasRental ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500' : ''}
+                `}
+              >
+                <div className="flex justify-between items-start">
+                  <span className={`text-sm font-medium ${isToday ? 'text-primary-600' : ''}`}>
+                    {day}
+                  </span>
+                  {hasRental && (
+                    <span className="text-xs bg-yellow-500 text-white rounded-full px-1.5 py-0.5">
+                      2
+                    </span>
+                  )}
+                </div>
+                {hasRental && (
+                  <div className="mt-1">
+                    <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                      🚗 Car 1 - Juan
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      🚗 Car 2 - Maria
+                    </p>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-500"></div>
+          <span className="text-gray-600 dark:text-gray-400">Has Rental/Schedule</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-primary-50 dark:bg-primary-900/20 border border-primary-500"></div>
+          <span className="text-gray-600 dark:text-gray-400">Today</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded border border-gray-200 dark:border-gray-700"></div>
+          <span className="text-gray-600 dark:text-gray-400">Available</span>
+        </div>
+      </div>
+
+      {/* Selected Day Details */}
+      <div className="card">
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          📅 Schedule Details
+        </h4>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div>
+              <p className="font-medium text-gray-900 dark:text-white">Toyota Vios - ABC-1234</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Driver: Juan Dela Cruz</p>
+            </div>
+            <div className="text-right">
+              <span className="badge badge-warning">Active</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Jul 5 - Jul 10</p>
             </div>
           </div>
-        )
+          <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div>
+              <p className="font-medium text-gray-900 dark:text-white">Toyota Innova - XYZ-5678</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Driver: Maria Santos</p>
+            </div>
+            <div className="text-right">
+              <span className="badge badge-warning">Active</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Jul 5 - Jul 8</p>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
+          Click on a date to view schedule details
+        </p>
+      </div>
+    </div>
+  )
 
       default:
         return null
