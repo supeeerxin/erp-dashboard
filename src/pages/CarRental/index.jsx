@@ -12,6 +12,7 @@ const CarRental = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedDayRentals, setSelectedDayRentals] = useState([])
+  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'completed', 'cancelled'
 
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false)
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
@@ -28,8 +29,6 @@ const CarRental = () => {
     switch (status) {
       case 'available':
         return <span className="badge badge-success">Available</span>
-      case 'rented':
-        return <span className="badge badge-warning">Rented</span>
       case 'maintenance':
         return <span className="badge badge-danger">Maintenance</span>
       default:
@@ -50,6 +49,22 @@ const CarRental = () => {
     }
   }
 
+  // Filter rentals by status
+  const getFilteredRentals = () => {
+    let filtered = rentals
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(r => r.status === statusFilter)
+    }
+    if (searchQuery) {
+      filtered = filtered.filter(r =>
+        r.driver_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.vehicle_plate?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.transaction_number?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+    return filtered
+  }
+
   const filteredVehicles = vehicles.filter(v =>
     v.plate_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     v.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -61,11 +76,13 @@ const CarRental = () => {
     d.contact?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredRentals = rentals.filter(r =>
-    r.driver_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.vehicle_plate?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.transaction_number?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredRentals = getFilteredRentals()
+
+  // Stats
+  const totalRentals = rentals.length
+  const activeCount = rentals.filter(r => r.status === 'active').length
+  const completedCount = rentals.filter(r => r.status === 'completed').length
+  const cancelledCount = rentals.filter(r => r.status === 'cancelled').length
 
   const handleAddVehicle = async (data) => {
     await addVehicle(data)
@@ -134,20 +151,20 @@ const CarRental = () => {
       case 'vehicles':
         return (
           <div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-  <div className="card p-4">
-    <p className="text-sm text-gray-600 dark:text-gray-400">Total Vehicles</p>
-    <p className="text-2xl font-bold text-gray-900 dark:text-white">{vehicles.length}</p>
-  </div>
-  <div className="card p-4 bg-green-50 dark:bg-green-900/20">
-    <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
-    <p className="text-2xl font-bold text-green-600">{vehicles.filter(v => v.status === 'available').length}</p>
-  </div>
-  <div className="card p-4 bg-red-50 dark:bg-red-900/20">
-    <p className="text-sm text-gray-600 dark:text-gray-400">Maintenance</p>
-    <p className="text-2xl font-bold text-red-600">{vehicles.filter(v => v.status === 'maintenance').length}</p>
-  </div>
-</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              <div className="card p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Vehicles</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{vehicles.length}</p>
+              </div>
+              <div className="card p-4 bg-green-50 dark:bg-green-900/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
+                <p className="text-2xl font-bold text-green-600">{vehicles.filter(v => v.status === 'available').length}</p>
+              </div>
+              <div className="card p-4 bg-red-50 dark:bg-red-900/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Maintenance</p>
+                <p className="text-2xl font-bold text-red-600">{vehicles.filter(v => v.status === 'maintenance').length}</p>
+              </div>
+            </div>
 
             {filteredVehicles.length === 0 ? (
               <div className="card">
@@ -252,39 +269,106 @@ const CarRental = () => {
       case 'rentals':
         return (
           <div>
+            {/* Stats Cards - Clickable Filters */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <div className="card p-4">
+              <div 
+                onClick={() => setStatusFilter('all')}
+                className={`card p-4 cursor-pointer transition-all hover:shadow-md ${
+                  statusFilter === 'all' ? 'ring-2 ring-primary-500 border-primary-500' : ''
+                }`}
+              >
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{rentals.length}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalRentals}</p>
+                {statusFilter === 'all' && (
+                  <p className="text-xs text-primary-500">▼ Filtering</p>
+                )}
               </div>
-              <div className="card p-4 bg-yellow-50">
+              <div 
+                onClick={() => setStatusFilter('active')}
+                className={`card p-4 bg-yellow-50 dark:bg-yellow-900/20 cursor-pointer transition-all hover:shadow-md ${
+                  statusFilter === 'active' ? 'ring-2 ring-yellow-500 border-yellow-500' : ''
+                }`}
+              >
                 <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
-                <p className="text-2xl font-bold text-yellow-600">{rentals.filter(r => r.status === 'active').length}</p>
+                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{activeCount}</p>
+                {statusFilter === 'active' && (
+                  <p className="text-xs text-yellow-600">▼ Filtering</p>
+                )}
               </div>
-              <div className="card p-4 bg-green-50">
+              <div 
+                onClick={() => setStatusFilter('completed')}
+                className={`card p-4 bg-green-50 dark:bg-green-900/20 cursor-pointer transition-all hover:shadow-md ${
+                  statusFilter === 'completed' ? 'ring-2 ring-green-500 border-green-500' : ''
+                }`}
+              >
                 <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{rentals.filter(r => r.status === 'completed').length}</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{completedCount}</p>
+                {statusFilter === 'completed' && (
+                  <p className="text-xs text-green-600">▼ Filtering</p>
+                )}
               </div>
-              <div className="card p-4 bg-red-50">
+              <div 
+                onClick={() => setStatusFilter('cancelled')}
+                className={`card p-4 bg-red-50 dark:bg-red-900/20 cursor-pointer transition-all hover:shadow-md ${
+                  statusFilter === 'cancelled' ? 'ring-2 ring-red-500 border-red-500' : ''
+                }`}
+              >
                 <p className="text-sm text-gray-600 dark:text-gray-400">Cancelled</p>
-                <p className="text-2xl font-bold text-red-600">{rentals.filter(r => r.status === 'cancelled').length}</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{cancelledCount}</p>
+                {statusFilter === 'cancelled' && (
+                  <p className="text-xs text-red-600">▼ Filtering</p>
+                )}
               </div>
             </div>
 
+            {/* Clear filter button */}
+            {statusFilter !== 'all' && (
+              <div className="flex justify-end mb-3">
+                <button
+                  onClick={() => setStatusFilter('all')}
+                  className="text-sm text-primary-500 hover:text-primary-600 font-medium"
+                >
+                  Clear filter ({statusFilter})
+                </button>
+              </div>
+            )}
+
+            {/* Rental List */}
             {filteredRentals.length === 0 ? (
               <div className="card">
                 <div className="empty-state">
                   <Calendar className="empty-state-icon" />
-                  <p className="empty-state-text">No rentals found</p>
-                  <button onClick={() => setIsRentalModalOpen(true)} className="btn-primary mt-4">
-                    <Plus className="w-4 h-4 inline mr-2" /> New Rental
-                  </button>
+                  <p className="empty-state-text">
+                    {statusFilter !== 'all' 
+                      ? `No ${statusFilter} rentals found` 
+                      : 'No rentals found'
+                    }
+                  </p>
+                  <p className="empty-state-subtext">
+                    {statusFilter !== 'all' 
+                      ? `All ${statusFilter} rentals will appear here` 
+                      : 'Start by creating your first rental'
+                    }
+                  </p>
+                  {statusFilter === 'all' && (
+                    <button onClick={() => setIsRentalModalOpen(true)} className="btn-primary mt-4">
+                      <Plus className="w-4 h-4 inline mr-2" /> New Rental
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
                 {filteredRentals.map((rental) => {
                   const vehicle = vehicles.find(v => v.id === rental.vehicle_id)
+                  const startDate = rental.start_date ? new Date(rental.start_date) : null
+                  const endDate = rental.end_date ? new Date(rental.end_date) : null
+                  let days = 0
+                  if (startDate && endDate) {
+                    const diffTime = Math.abs(endDate - startDate)
+                    days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+                  }
+                  
                   return (
                     <div key={rental.id} className="card">
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -305,11 +389,17 @@ const CarRental = () => {
                               <Clock className="w-4 h-4" />
                               {rental.start_date} → {rental.end_date}
                             </span>
+                            <span className="text-xs text-gray-500">
+                              ({days} days)
+                            </span>
                             <span className="font-medium text-primary-500">
                               ₱{rental.daily_boundary}/day
                             </span>
                             <span className="font-medium">
                               Total: ₱{rental.total_amount?.toLocaleString() || 0}
+                            </span>
+                            <span className="text-sm">
+                              Balance: ₱{rental.remaining_balance?.toLocaleString() || 0}
                             </span>
                           </div>
                         </div>
@@ -317,15 +407,24 @@ const CarRental = () => {
                           {getRentalStatusBadge(rental.status)}
                           {rental.status === 'active' && (
                             <div className="flex gap-1">
-                              <button onClick={() => handleRentalStatusChange(rental.id, 'completed')} className="btn-success text-xs px-2 py-1 rounded-lg">
+                              <button 
+                                onClick={() => handleRentalStatusChange(rental.id, 'completed')} 
+                                className="btn-success text-xs px-2 py-1 rounded-lg"
+                              >
                                 <CheckCircle className="w-3 h-3 inline mr-1" /> Done
                               </button>
-                              <button onClick={() => handleRentalStatusChange(rental.id, 'cancelled')} className="btn-danger text-xs px-2 py-1 rounded-lg">
+                              <button 
+                                onClick={() => handleRentalStatusChange(rental.id, 'cancelled')} 
+                                className="btn-danger text-xs px-2 py-1 rounded-lg"
+                              >
                                 <XCircle className="w-3 h-3 inline mr-1" /> Cancel
                               </button>
                             </div>
                           )}
-                          <button onClick={() => handleDeleteRental(rental.id)} className="p-1.5 rounded-lg hover:bg-red-100">
+                          <button 
+                            onClick={() => handleDeleteRental(rental.id)} 
+                            className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20"
+                          >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </button>
                         </div>
@@ -373,14 +472,12 @@ const CarRental = () => {
 
         return (
           <div className="space-y-4">
-            {/* Calendar Header */}
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
               </h3>
             </div>
 
-            {/* Calendar Grid */}
             <div className="card">
               <div className="grid grid-cols-7 gap-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -389,12 +486,10 @@ const CarRental = () => {
                   </div>
                 ))}
                 
-                {/* Empty days before first day of month */}
                 {[...Array(firstDay)].map((_, i) => (
                   <div key={`empty-${i}`} className="min-h-20 rounded-lg p-2 bg-gray-50 dark:bg-gray-800/30" />
                 ))}
                 
-                {/* Calendar days */}
                 {[...Array(daysInMonth)].map((_, i) => {
                   const day = i + 1
                   const dayRentals = getRentalsForDay(day)
@@ -449,7 +544,6 @@ const CarRental = () => {
               </div>
             </div>
 
-            {/* Legend */}
             <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-500"></div>
@@ -465,7 +559,6 @@ const CarRental = () => {
               </div>
             </div>
 
-            {/* Selected Day Details */}
             {selectedDate && selectedDayRentals && selectedDayRentals.length > 0 && (
               <div className="card">
                 <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
