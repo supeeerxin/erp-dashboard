@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useVehicles } from '../../context/VehicleContext'
 import { useDrivers } from '../../context/DriverContext'
+import { useRentals } from '../../context/RentalContext'
 
 const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
   const { vehicles } = useVehicles()
   const { drivers } = useDrivers()
+  const { rentals } = useRentals()
+  
   const [formData, setFormData] = useState({
     vehicle_id: '',
     driver_id: '',
@@ -17,6 +20,43 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
     down_payment: '',
     notes: ''
   })
+
+  const [availableVehicles, setAvailableVehicles] = useState([])
+
+  // Check if a vehicle is available for the selected date range
+  const isVehicleAvailable = (vehicleId, startDate, endDate) => {
+    if (!startDate || !endDate) return true
+    
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    
+    // Check if vehicle has any conflicting rental
+    const hasConflict = rentals.some(rental => {
+      if (rental.vehicle_id !== vehicleId) return false
+      if (rental.is_deleted) return false
+      if (rental.status === 'cancelled') return false
+      
+      const rentalStart = new Date(rental.start_date)
+      const rentalEnd = rental.end_date ? new Date(rental.end_date) : rentalStart
+      
+      // Check if date ranges overlap
+      return start <= rentalEnd && end >= rentalStart
+    })
+    
+    return !hasConflict
+  }
+
+  // Get available vehicles based on selected dates
+  const getAvailableVehicles = () => {
+    const { start_date, end_date } = formData
+    if (!start_date || !end_date) return vehicles
+    
+    return vehicles.filter(vehicle => {
+      // Only show available or maintenance vehicles
+      if (vehicle.status === 'maintenance') return false
+      return isVehicleAvailable(vehicle.id, start_date, end_date)
+    })
+  }
 
   useEffect(() => {
     if (rental) {
@@ -32,19 +72,33 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
         notes: rental.notes || ''
       })
     } else {
+      // Set default dates to today and tomorrow
+      const today = new Date()
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      
       setFormData({
         vehicle_id: '',
         driver_id: '',
         driver_name: '',
         vehicle_plate: '',
-        start_date: '',
-        end_date: '',
+        start_date: today.toISOString().split('T')[0],
+        end_date: tomorrow.toISOString().split('T')[0],
         daily_boundary: '',
         down_payment: '',
         notes: ''
       })
     }
   }, [rental, isOpen])
+
+  // Update available vehicles when dates change
+  useEffect(() => {
+    if (formData.start_date && formData.end_date) {
+      setAvailableVehicles(getAvailableVehicles())
+    } else {
+      setAvailableVehicles(vehicles.filter(v => v.status !== 'maintenance'))
+    }
+  }, [formData.start_date, formData.end_date, vehicles, rentals])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -82,6 +136,13 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
       alert('Please fill in all required fields')
       return
     }
+
+    // Check if vehicle is available for the selected dates
+    if (!isVehicleAvailable(formData.vehicle_id, formData.start_date, formData.end_date)) {
+      alert('This vehicle is already booked for the selected dates. Please choose another vehicle or different dates.')
+      return
+    }
+
     onSave({
       ...formData,
       daily_boundary: parseFloat(formData.daily_boundary) || 0,
@@ -100,11 +161,13 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
   let totalAmount = 0
 
   if (startDate && endDate) {
-    totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+    const diffTime = Math.abs(endDate - startDate)
+    totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
     totalAmount = totalDays * (parseFloat(formData.daily_boundary) || 0)
   }
 
-  const availableVehicles = vehicles.filter(v => v.status === 'available')
+  // Get available vehicles for display
+  const displayVehicles = availableVehicles.length > 0 ? availableVehicles : vehicles.filter(v => v.status !== 'maintenance')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -119,48 +182,6 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="label">Vehicle *</label>
-            <select
-              name="vehicle_id"
-              value={formData.vehicle_id}
-              onChange={handleVehicleSelect}
-              className="input-field"
-              required
-            >
-              <option value="">Select Vehicle</option>
-              {availableVehicles.map(vehicle => (
-                <option key={vehicle.id} value={vehicle.id}>
-                  {vehicle.brand} {vehicle.model} - {vehicle.plate_number}
-                </option>
-              ))}
-            </select>
-            {availableVehicles.length === 0 && (
-              <p className="text-xs text-red-500 mt-1">No available vehicles. Please add a vehicle first.</p>
-            )}
-          </div>
-
-          <div>
-            <label className="label">Driver *</label>
-            <select
-              name="driver_id"
-              value={formData.driver_id}
-              onChange={handleDriverSelect}
-              className="input-field"
-              required
-            >
-              <option value="">Select Driver</option>
-              {drivers.map(driver => (
-                <option key={driver.id} value={driver.id}>
-                  {driver.name} - {driver.contact || 'No contact'}
-                </option>
-              ))}
-            </select>
-            {drivers.length === 0 && (
-              <p className="text-xs text-red-500 mt-1">No drivers available. Please add a driver first.</p>
-            )}
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Start Date *</label>
@@ -184,6 +205,52 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
                 required
               />
             </div>
+          </div>
+
+          <div>
+            <label className="label">Vehicle *</label>
+            <select
+              name="vehicle_id"
+              value={formData.vehicle_id}
+              onChange={handleVehicleSelect}
+              className="input-field"
+              required
+            >
+              <option value="">Select Vehicle</option>
+              {displayVehicles.map(vehicle => {
+                const isAvailable = isVehicleAvailable(vehicle.id, formData.start_date, formData.end_date)
+                return (
+                  <option key={vehicle.id} value={vehicle.id}>
+                    {vehicle.brand} {vehicle.model} - {vehicle.plate_number}
+                    {!isAvailable ? ' (Booked)' : ''}
+                  </option>
+                )
+              })}
+            </select>
+            {displayVehicles.length === 0 && (
+              <p className="text-xs text-red-500 mt-1">No vehicles available for the selected dates</p>
+            )}
+          </div>
+
+          <div>
+            <label className="label">Driver *</label>
+            <select
+              name="driver_id"
+              value={formData.driver_id}
+              onChange={handleDriverSelect}
+              className="input-field"
+              required
+            >
+              <option value="">Select Driver</option>
+              {drivers.map(driver => (
+                <option key={driver.id} value={driver.id}>
+                  {driver.name} - {driver.contact || 'No contact'}
+                </option>
+              ))}
+            </select>
+            {drivers.length === 0 && (
+              <p className="text-xs text-red-500 mt-1">No drivers available. Please add a driver first.</p>
+            )}
           </div>
 
           <div>
