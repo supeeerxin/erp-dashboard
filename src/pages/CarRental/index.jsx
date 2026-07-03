@@ -11,7 +11,6 @@ const CarRental = () => {
   const [activeTab, setActiveTab] = useState('vehicles')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Modals state
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false)
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
   const [isRentalModalOpen, setIsRentalModalOpen] = useState(false)
@@ -19,12 +18,10 @@ const CarRental = () => {
   const [editingDriver, setEditingDriver] = useState(null)
   const [editingRental, setEditingRental] = useState(null)
 
-  // Contexts
   const { vehicles, loading: vehiclesLoading, addVehicle, updateVehicle, deleteVehicle } = useVehicles()
   const { drivers, loading: driversLoading, addDriver, updateDriver, deleteDriver } = useDrivers()
   const { rentals, loading: rentalsLoading, addRental, updateRentalStatus, deleteRental } = useRentals()
 
-  // Get status badge
   const getStatusBadge = (status) => {
     switch (status) {
       case 'available':
@@ -51,7 +48,6 @@ const CarRental = () => {
     }
   }
 
-  // Filter functions
   const filteredVehicles = vehicles.filter(v =>
     v.plate_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     v.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,7 +65,6 @@ const CarRental = () => {
     r.transaction_number?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Handlers
   const handleAddVehicle = async (data) => {
     await addVehicle(data)
     setIsVehicleModalOpen(false)
@@ -137,7 +132,6 @@ const CarRental = () => {
       case 'vehicles':
         return (
           <div>
-            {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               <div className="card p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
@@ -157,7 +151,6 @@ const CarRental = () => {
               </div>
             </div>
 
-            {/* Vehicle List */}
             {filteredVehicles.length === 0 ? (
               <div className="card">
                 <div className="empty-state">
@@ -183,19 +176,10 @@ const CarRental = () => {
                         )}
                       </div>
                       <div className="flex gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingVehicle(vehicle)
-                            setIsVehicleModalOpen(true)
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-gray-100"
-                        >
+                        <button onClick={() => { setEditingVehicle(vehicle); setIsVehicleModalOpen(true) }} className="p-1.5 rounded-lg hover:bg-gray-100">
                           <Edit2 className="w-4 h-4 text-gray-500" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteVehicle(vehicle.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-100"
-                        >
+                        <button onClick={() => handleDeleteVehicle(vehicle.id)} className="p-1.5 rounded-lg hover:bg-red-100">
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
                       </div>
@@ -252,19 +236,10 @@ const CarRental = () => {
                         )}
                       </div>
                       <div className="flex gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingDriver(driver)
-                            setIsDriverModalOpen(true)
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-gray-100"
-                        >
+                        <button onClick={() => { setEditingDriver(driver); setIsDriverModalOpen(true) }} className="p-1.5 rounded-lg hover:bg-gray-100">
                           <Edit2 className="w-4 h-4 text-gray-500" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteDriver(driver.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-100"
-                        >
+                        <button onClick={() => handleDeleteDriver(driver.id)} className="p-1.5 rounded-lg hover:bg-red-100">
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
                       </div>
@@ -344,24 +319,15 @@ const CarRental = () => {
                           {getRentalStatusBadge(rental.status)}
                           {rental.status === 'active' && (
                             <div className="flex gap-1">
-                              <button
-                                onClick={() => handleRentalStatusChange(rental.id, 'completed')}
-                                className="btn-success text-xs px-2 py-1 rounded-lg"
-                              >
+                              <button onClick={() => handleRentalStatusChange(rental.id, 'completed')} className="btn-success text-xs px-2 py-1 rounded-lg">
                                 <CheckCircle className="w-3 h-3 inline mr-1" /> Done
                               </button>
-                              <button
-                                onClick={() => handleRentalStatusChange(rental.id, 'cancelled')}
-                                className="btn-danger text-xs px-2 py-1 rounded-lg"
-                              >
+                              <button onClick={() => handleRentalStatusChange(rental.id, 'cancelled')} className="btn-danger text-xs px-2 py-1 rounded-lg">
                                 <XCircle className="w-3 h-3 inline mr-1" /> Cancel
                               </button>
                             </div>
                           )}
-                          <button
-                            onClick={() => handleDeleteRental(rental.id)}
-                            className="p-1.5 rounded-lg hover:bg-red-100"
-                          >
+                          <button onClick={() => handleDeleteRental(rental.id)} className="p-1.5 rounded-lg hover:bg-red-100">
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </button>
                         </div>
@@ -381,14 +347,8 @@ const CarRental = () => {
               <LayoutDashboard className="empty-state-icon" />
               <p className="empty-state-text">Schedule View</p>
               <p className="empty-state-subtext">
-                Go to Car Schedule page for full calendar view
+                View vehicle availability in calendar format
               </p>
-              <button
-                onClick={() => window.location.href = '/car-schedule'}
-                className="btn-primary mt-4"
-              >
-                View Full Schedule
-              </button>
             </div>
           </div>
         )
@@ -398,7 +358,6 @@ const CarRental = () => {
     }
   }
 
-  // Loading states
   if (vehiclesLoading || driversLoading || rentalsLoading) {
     return (
       <div className="space-y-6">
@@ -417,7 +376,6 @@ const CarRental = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -447,7 +405,6 @@ const CarRental = () => {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700">
         {tabs.map((tab) => {
           const Icon = tab.icon
@@ -456,20 +413,17 @@ const CarRental = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all
-                ${isActive 
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all ${
+                isActive 
                   ? 'text-primary-500 border-b-2 border-primary-500' 
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }
-              `}
+              }`}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
-              <span className={`
-                text-xs px-2 py-0.5 rounded-full
-                ${isActive ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}
-              `}>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                isActive ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+              }`}>
                 {tab.count}
               </span>
             </button>
@@ -477,7 +431,6 @@ const CarRental = () => {
         })}
       </div>
 
-      {/* Search Bar */}
       {activeTab !== 'schedule' && (
         <div className="card">
           <div className="relative">
@@ -493,36 +446,25 @@ const CarRental = () => {
         </div>
       )}
 
-      {/* Content */}
       {renderContent()}
 
-      {/* Modals */}
       <VehicleModal
         isOpen={isVehicleModalOpen}
-        onClose={() => {
-          setIsVehicleModalOpen(false)
-          setEditingVehicle(null)
-        }}
+        onClose={() => { setIsVehicleModalOpen(false); setEditingVehicle(null) }}
         onSave={editingVehicle ? handleUpdateVehicle : handleAddVehicle}
         vehicle={editingVehicle}
       />
 
       <DriverModal
         isOpen={isDriverModalOpen}
-        onClose={() => {
-          setIsDriverModalOpen(false)
-          setEditingDriver(null)
-        }}
+        onClose={() => { setIsDriverModalOpen(false); setEditingDriver(null) }}
         onSave={editingDriver ? handleUpdateDriver : handleAddDriver}
         driver={editingDriver}
       />
 
       <RentalModal
         isOpen={isRentalModalOpen}
-        onClose={() => {
-          setIsRentalModalOpen(false)
-          setEditingRental(null)
-        }}
+        onClose={() => { setIsRentalModalOpen(false); setEditingRental(null) }}
         onSave={editingRental ? handleUpdateRental : handleAddRental}
         rental={editingRental}
       />
