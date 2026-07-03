@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 import { generateLoanNumber } from '../utils/transactionUtils'
 import { isAfter, parseISO } from 'date-fns'
 
@@ -17,6 +18,7 @@ export const CashLoanProvider = ({ children }) => {
   const [loans, setLoans] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('cashLoans')
@@ -95,7 +97,7 @@ export const CashLoanProvider = ({ children }) => {
     }
     setLoans(prev => [...prev, newLoan])
     showNotification(`Loan ${newLoan.transactionNumber} created!`, 'success')
-    addLog('Created', 'Cash Loan', `Created loan: ${newLoan.transactionNumber} for ₱${principal} (Interest: ₱${interestAmount}, Total: ₱${totalPayable})`)
+    addLog('Created', 'Cash Loan', `Created loan: ${newLoan.transactionNumber} for ₱${principal}`)
     return newLoan
   }
 
@@ -171,7 +173,7 @@ export const CashLoanProvider = ({ children }) => {
           type: 'payment'
         }]
         
-        addLog('Paid', 'Cash Loan', `Payment of ₱${amount} recorded for ${loan.transactionNumber} (Balance: ₱${newBalance})`)
+        addLog('Paid', 'Cash Loan', `Payment of ₱${amount} recorded for ${loan.transactionNumber}`)
         return {
           ...loan,
           payments,
