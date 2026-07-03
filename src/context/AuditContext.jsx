@@ -4,8 +4,9 @@ const AuditContext = createContext()
 
 export const useAudit = () => {
   const context = useContext(AuditContext)
-  // Return dummy functions para hindi mag-error
+  // Return dummy functions to prevent errors if no provider
   if (!context) {
+    console.warn('useAudit used outside of AuditProvider, returning dummy functions')
     return {
       logs: [],
       loading: false,
@@ -24,7 +25,11 @@ export const AuditProvider = ({ children }) => {
   useEffect(() => {
     const saved = localStorage.getItem('auditLogs')
     if (saved) {
-      setLogs(JSON.parse(saved))
+      try {
+        setLogs(JSON.parse(saved))
+      } catch (e) {
+        console.error('Error parsing audit logs:', e)
+      }
     }
     setLoading(false)
   }, [])
@@ -39,9 +44,9 @@ export const AuditProvider = ({ children }) => {
     const newLog = {
       id: Date.now(),
       timestamp: new Date().toISOString(),
-      user,
-      action,
-      module,
+      user: user || 'Admin',
+      action: action,
+      module: module,
       details: typeof details === 'object' ? JSON.stringify(details) : details,
       createdAt: new Date().toISOString()
     }
