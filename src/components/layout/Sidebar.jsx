@@ -15,7 +15,8 @@ import {
   LogOut,
   CreditCard,
   FileText,
-  Calendar
+  Calendar,
+  Car 
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -54,7 +55,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       ]
     }
   ]
-
+{
+  items: [
+    { path: '/vehicles', icon: Car, label: 'Vehicles' },
+  ]
+}
   const handleLogout = () => {
     logout()
   }
