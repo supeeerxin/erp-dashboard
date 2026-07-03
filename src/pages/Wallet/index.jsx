@@ -1,5 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Wallet as WalletIcon, TrendingUp, TrendingDown, CreditCard, DollarSign, Calendar, ArrowUp, ArrowDown, Receipt } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { 
+  Wallet as WalletIcon, 
+  TrendingUp, 
+  TrendingDown, 
+  CreditCard, 
+  DollarSign, 
+  Calendar, 
+  ArrowUp, 
+  ArrowDown, 
+  Receipt,
+  Package,
+  ShoppingBag,
+  Car,
+  Users,
+  BarChart3,
+  ChevronRight,
+  Eye
+} from 'lucide-react'
 import { useIncome } from '../../context/IncomeContext'
 import { useExpenses } from '../../context/ExpenseContext'
 import { usePayables } from '../../context/PayableContext'
@@ -7,6 +25,7 @@ import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useBreadOrders } from '../../context/BreadOrderContext'
 import { useCashLoans } from '../../context/CashLoanContext'
 import { useRentals } from '../../context/RentalContext'
+import { useCustomers } from '../../context/CustomerContext'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -15,10 +34,13 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  PointElement,
+  LineElement
 } from 'chart.js'
-import { Bar, Doughnut } from 'react-chartjs-2'
+import { Bar, Doughnut, Line } from 'react-chartjs-2'
 import { useTheme } from '../../context/ThemeContext'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns'
 
 ChartJS.register(
   CategoryScale,
@@ -27,11 +49,16 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  PointElement,
+  LineElement
 )
 
 const Wallet = () => {
+  const navigate = useNavigate()
   const { darkMode } = useTheme()
+  
+  // Get data from all contexts
   const { getTotals: getIncomeTotals, incomes } = useIncome()
   const { getTotals: getExpenseTotals, expenses } = useExpenses()
   const { getTotals: getPayableTotals, payables } = usePayables()
@@ -39,8 +66,21 @@ const Wallet = () => {
   const { orders: breadOrders } = useBreadOrders()
   const { loans: cashLoans } = useCashLoans()
   const { rentals } = useRentals()
+  const { customers } = useCustomers()
 
-  // Calculate all income sources
+  const [selectedBusiness, setSelectedBusiness] = useState('all')
+  const [dateRange, setDateRange] = useState('all') // 'all', 'week', 'month'
+
+  // Get current date for filtering
+  const now = new Date()
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
+  const monthStart = startOfMonth(now)
+  const monthEnd = endOfMonth(now)
+
+  // ============ INCOME CALCULATIONS ============
+  
+  // Calculate total income from all sources
   const totalIncome = useMemo(() => {
     // From Income module
     const incomeTotal = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
@@ -63,7 +103,7 @@ const Wallet = () => {
       return sum + paid
     }, 0) || 0
     
-    // From Rental payments (down payments + payments)
+    // From Rental payments
     const rentalPaid = rentals?.reduce((sum, r) => {
       const paid = (r.down_payment || 0) + (r.remaining_balance || 0)
       return sum + paid
@@ -72,7 +112,8 @@ const Wallet = () => {
     return incomeTotal + riceCreditPaid + breadOrderPaid + cashLoanPaid + rentalPaid
   }, [incomes, riceCredits, breadOrders, cashLoans, rentals])
 
-  // Calculate all expenses
+  // ============ EXPENSE CALCULATIONS ============
+  
   const totalExpenses = useMemo(() => {
     // From Expense module
     const expenseTotal = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
@@ -86,16 +127,229 @@ const Wallet = () => {
     return expenseTotal + riceCreditCost + breadOrderCost
   }, [expenses, riceCredits, breadOrders])
 
-  // Calculate payables
+  // ============ RECEIVABLES (Dapat kolektahin) ============
+  
+  const receivables = useMemo(() => {
+    const riceCreditReceivable = riceCredits?.reduce((sum, t) => {
+      if (t.status !== 'completed') {
+        return sum + (t.remainingBalance || 0)
+      }
+      return sum
+    }, 0) || 0
+    
+    const breadOrderReceivable = breadOrders?.reduce((sum, o) => {
+      if (o.status !== 'completed') {
+        return sum + (o.remainingBalance || 0)
+      }
+      return sum
+    }, 0) || 0
+    
+    const cashLoanReceivable = cashLoans?.reduce((sum, l) => {
+      if (l.status !== 'completed') {
+        return sum + (l.remainingBalance || 0)
+      }
+      return sum
+    }, 0) || 0
+    
+    return riceCreditReceivable + breadOrderReceivable + cashLoanReceivable
+  }, [riceCredits, breadOrders, cashLoans])
+
+  // ============ PAYABLES (Dapat bayaran) ============
+  
   const payableTotals = getPayableTotals()
   const unpaidPayables = payableTotals.totalUnpaid || 0
 
-  // Calculate net profit
+  // ============ BUSINESS INCOME BREAKDOWN ============
+  
+  const businessIncome = useMemo(() => {
+    const riceCreditIncome = riceCredits?.reduce((sum, t) => {
+      const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
+      return sum + paid
+    }, 0) || 0
+    
+    const breadOrderIncome = breadOrders?.reduce((sum, o) => {
+      const paid = o.payments?.reduce((s, p) => s + p.amount, 0) || 0
+      return sum + paid
+    }, 0) || 0
+    
+    const cashLoanIncome = cashLoans?.reduce((sum, l) => {
+      const paid = l.payments?.reduce((s, p) => s + p.amount, 0) || 0
+      return sum + paid
+    }, 0) || 0
+    
+    const rentalIncome = rentals?.reduce((sum, r) => {
+      const paid = (r.down_payment || 0) + (r.remaining_balance || 0)
+      return sum + paid
+    }, 0) || 0
+    
+    const incomeModule = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
+    
+    return {
+      riceCredit: riceCreditIncome,
+      breadOrder: breadOrderIncome,
+      cashLoan: cashLoanIncome,
+      rental: rentalIncome,
+      incomeModule: incomeModule
+    }
+  }, [riceCredits, breadOrders, cashLoans, rentals, incomes])
+
+  // ============ BUSINESS PUHUNAN BREAKDOWN ============
+  
+  const businessPuhunan = useMemo(() => {
+    const riceCreditCost = riceCredits?.reduce((sum, t) => sum + (t.cost || 0), 0) || 0
+    const breadOrderCost = breadOrders?.reduce((sum, o) => sum + (o.totalCost || 0), 0) || 0
+    const expenseModule = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+    
+    return {
+      riceCredit: riceCreditCost,
+      breadOrder: breadOrderCost,
+      expenses: expenseModule
+    }
+  }, [riceCredits, breadOrders, expenses])
+
+  // ============ BUSINESS PROFIT ============
+  
+  const businessProfit = useMemo(() => {
+    return {
+      riceCredit: businessIncome.riceCredit - businessPuhunan.riceCredit,
+      breadOrder: businessIncome.breadOrder - businessPuhunan.breadOrder,
+      cashLoan: businessIncome.cashLoan,
+      rental: businessIncome.rental,
+      incomeModule: businessIncome.incomeModule - businessPuhunan.expenses
+    }
+  }, [businessIncome, businessPuhunan])
+
+  // ============ WEEKLY & MONTHLY INCOME ============
+  
+  const getIncomeByDateRange = (items, dateField = 'createdAt') => {
+    return items?.filter(item => {
+      if (!item[dateField]) return false
+      const date = new Date(item[dateField])
+      if (dateRange === 'week') {
+        return isWithinInterval(date, { start: weekStart, end: weekEnd })
+      }
+      if (dateRange === 'month') {
+        return isWithinInterval(date, { start: monthStart, end: monthEnd })
+      }
+      return true
+    }).reduce((sum, item) => sum + (item.amount || 0), 0) || 0
+  }
+
+  const weeklyIncome = useMemo(() => {
+    const fromIncomes = getIncomeByDateRange(incomes)
+    const fromRiceCredit = riceCredits?.filter(t => {
+      const date = new Date(t.createdAt)
+      return isWithinInterval(date, { start: weekStart, end: weekEnd })
+    }).reduce((sum, t) => {
+      const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
+      return sum + paid
+    }, 0) || 0
+    
+    return fromIncomes + fromRiceCredit
+  }, [incomes, riceCredits, weekStart, weekEnd, dateRange])
+
+  const monthlyIncome = useMemo(() => {
+    const fromIncomes = getIncomeByDateRange(incomes)
+    const fromRiceCredit = riceCredits?.filter(t => {
+      const date = new Date(t.createdAt)
+      return isWithinInterval(date, { start: monthStart, end: monthEnd })
+    }).reduce((sum, t) => {
+      const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
+      return sum + paid
+    }, 0) || 0
+    
+    return fromIncomes + fromRiceCredit
+  }, [incomes, riceCredits, monthStart, monthEnd, dateRange])
+
+  // ============ NET PROFIT & CASH ON HAND ============
+  
   const netProfit = totalIncome - totalExpenses
   const cashOnHand = netProfit - unpaidPayables
 
-  // Get monthly data for chart
-  const getMonthlyData = () => {
+  // ============ NAVIGATION FUNCTIONS ============
+  
+  const handleCardClick = (path) => {
+    navigate(path)
+  }
+
+  const businessCards = [
+    {
+      id: 'riceCredit',
+      title: 'Rice Credit',
+      icon: Package,
+      color: 'bg-blue-500',
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+      borderColor: 'border-blue-200 dark:border-blue-800',
+      income: businessIncome.riceCredit,
+      puhunan: businessPuhunan.riceCredit,
+      profit: businessProfit.riceCredit,
+      path: '/rice-credit'
+    },
+    {
+      id: 'breadOrder',
+      title: 'Bread Orders',
+      icon: ShoppingBag,
+      color: 'bg-yellow-500',
+      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+      borderColor: 'border-yellow-200 dark:border-yellow-800',
+      income: businessIncome.breadOrder,
+      puhunan: businessPuhunan.breadOrder,
+      profit: businessProfit.breadOrder,
+      path: '/bread-orders'
+    },
+    {
+      id: 'cashLoan',
+      title: 'Cash Loans',
+      icon: DollarSign,
+      color: 'bg-green-500',
+      bgColor: 'bg-green-50 dark:bg-green-900/20',
+      borderColor: 'border-green-200 dark:border-green-800',
+      income: businessIncome.cashLoan,
+      puhunan: 0,
+      profit: businessProfit.cashLoan,
+      path: '/cash-loans'
+    },
+    {
+      id: 'rental',
+      title: 'Car Rental',
+      icon: Car,
+      color: 'bg-purple-500',
+      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+      borderColor: 'border-purple-200 dark:border-purple-800',
+      income: businessIncome.rental,
+      puhunan: 0,
+      profit: businessProfit.rental,
+      path: '/car-rental'
+    },
+    {
+      id: 'incomeModule',
+      title: 'Other Income',
+      icon: TrendingUp,
+      color: 'bg-indigo-500',
+      bgColor: 'bg-indigo-50 dark:bg-indigo-900/20',
+      borderColor: 'border-indigo-200 dark:border-indigo-800',
+      income: businessIncome.incomeModule,
+      puhunan: 0,
+      profit: businessProfit.incomeModule,
+      path: '/income'
+    },
+    {
+      id: 'expenses',
+      title: 'Expenses',
+      icon: TrendingDown,
+      color: 'bg-red-500',
+      bgColor: 'bg-red-50 dark:bg-red-900/20',
+      borderColor: 'border-red-200 dark:border-red-800',
+      income: 0,
+      puhunan: businessPuhunan.expenses,
+      profit: -businessPuhunan.expenses,
+      path: '/expenses'
+    }
+  ]
+
+  // ============ CHART DATA ============
+  
+  const getMonthlyChartData = () => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     const incomeByMonth = {}
     const expenseByMonth = {}
@@ -105,7 +359,6 @@ const Wallet = () => {
       expenseByMonth[m] = 0
     })
 
-    // Sum income by month
     incomes?.forEach(inc => {
       if (!inc.isDeleted) {
         const date = new Date(inc.date || inc.createdAt)
@@ -114,7 +367,6 @@ const Wallet = () => {
       }
     })
 
-    // Sum expenses by month
     expenses?.forEach(exp => {
       if (!exp.isDeleted) {
         const date = new Date(exp.date || exp.createdAt)
@@ -126,7 +378,7 @@ const Wallet = () => {
     return { incomeByMonth, expenseByMonth }
   }
 
-  const monthlyData = getMonthlyData()
+  const monthlyData = getMonthlyChartData()
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
   const chartData = {
@@ -137,14 +389,16 @@ const Wallet = () => {
         data: months.map(m => monthlyData.incomeByMonth[m] || 0),
         backgroundColor: 'rgba(34, 197, 94, 0.8)',
         borderColor: 'rgb(34, 197, 94)',
-        borderWidth: 1
+        borderWidth: 2,
+        tension: 0.4
       },
       {
         label: 'Expenses',
         data: months.map(m => monthlyData.expenseByMonth[m] || 0),
         backgroundColor: 'rgba(239, 68, 68, 0.8)',
         borderColor: 'rgb(239, 68, 68)',
-        borderWidth: 1
+        borderWidth: 2,
+        tension: 0.4
       }
     ]
   }
@@ -186,12 +440,16 @@ const Wallet = () => {
     }
   }
 
-  const expenseCategoryData = {
-    labels: Object.keys(payableTotals.byCategory || {}),
+  const receivableData = {
+    labels: ['Rice Credit', 'Bread Orders', 'Cash Loans'],
     datasets: [
       {
-        data: Object.values(payableTotals.byCategory || {}),
-        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'],
+        data: [
+          riceCredits?.reduce((sum, t) => t.status !== 'completed' ? sum + (t.remainingBalance || 0) : sum, 0) || 0,
+          breadOrders?.reduce((sum, o) => o.status !== 'completed' ? sum + (o.remainingBalance || 0) : sum, 0) || 0,
+          cashLoans?.reduce((sum, l) => l.status !== 'completed' ? sum + (l.remainingBalance || 0) : sum, 0) || 0
+        ],
+        backgroundColor: ['#3b82f6', '#eab308', '#22c55e'],
         borderColor: darkMode ? '#1f2937' : '#ffffff',
         borderWidth: 2
       }
@@ -213,6 +471,11 @@ const Wallet = () => {
     }
   }
 
+  // Format currency
+  const formatCurrency = (amount) => {
+    return '₱' + (amount || 0).toLocaleString()
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -220,78 +483,230 @@ const Wallet = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <WalletIcon className="w-6 h-6 text-primary-500" />
-            Wallet
+            Wallet & Cash Flow
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Overall cash flow and financial overview
+            Complete financial overview of your business
           </p>
+        </div>
+        <div className="flex gap-2">
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="input-field w-40"
+          >
+            <option value="all">All Time</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+          </select>
         </div>
       </div>
 
-      {/* Main Stats */}
+      {/* Main Summary Cards - Clickable */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="card p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Income</p>
+        <div 
+          onClick={() => handleCardClick('/income')}
+          className="card p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 cursor-pointer hover:shadow-lg transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Income</p>
+              </div>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">
+                {formatCurrency(totalIncome)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {dateRange === 'week' ? 'This week' : dateRange === 'month' ? 'This month' : 'All time'}
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
           </div>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">
-            ₱{totalIncome.toLocaleString()}
-          </p>
         </div>
 
-        <div className="card p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-          <div className="flex items-center gap-2">
-            <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</p>
+        <div 
+          onClick={() => handleCardClick('/expenses')}
+          className="card p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 cursor-pointer hover:shadow-lg transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</p>
+              </div>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">
+                {formatCurrency(totalExpenses)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Including all puhunan
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
           </div>
-          <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">
-            ₱{totalExpenses.toLocaleString()}
-          </p>
         </div>
 
-        <div className="card p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Net Profit</p>
+        <div 
+          onClick={() => handleCardClick('/reports')}
+          className={`card p-4 ${netProfit >= 0 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'} cursor-pointer hover:shadow-lg transition-all`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Net Profit</p>
+              </div>
+              <p className={`text-2xl font-bold mt-2 ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {formatCurrency(netProfit)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Income - Expenses
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
           </div>
-          <p className={`text-2xl font-bold mt-2 ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            ₱{netProfit.toLocaleString()}
-          </p>
         </div>
 
-        <div className="card p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-          <div className="flex items-center gap-2">
-            <WalletIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Cash on Hand</p>
+        <div 
+          onClick={() => handleCardClick('/payables')}
+          className="card p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 cursor-pointer hover:shadow-lg transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <WalletIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Cash on Hand</p>
+              </div>
+              <p className={`text-2xl font-bold mt-2 ${cashOnHand >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {formatCurrency(cashOnHand)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Net Profit - Payables ({formatCurrency(unpaidPayables)})
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
           </div>
-          <p className={`text-2xl font-bold mt-2 ${cashOnHand >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            ₱{cashOnHand.toLocaleString()}
+        </div>
+      </div>
+
+      {/* Receivables & Payables Summary */}
+      <div className="grid grid-cols-2 gap-3">
+        <div 
+          onClick={() => handleCardClick('/due-dates')}
+          className="card p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 cursor-pointer hover:shadow-lg transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Receivables (Dapat Kolektahin)</p>
+              </div>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">
+                {formatCurrency(receivables)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {riceCredits?.filter(t => t.status !== 'completed').length || 0} pending payments
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => handleCardClick('/payables')}
+          className="card p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 cursor-pointer hover:shadow-lg transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-red-600 dark:text-red-400" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Payables (Dapat Bayaran)</p>
+              </div>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">
+                {formatCurrency(unpaidPayables)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {payables?.filter(p => p.status !== 'paid').length || 0} unpaid bills
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Business Breakdown Cards - Clickable */}
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mt-4">
+        Business Breakdown
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {businessCards.map((business) => {
+          const Icon = business.icon
+          return (
+            <div
+              key={business.id}
+              onClick={() => handleCardClick(business.path)}
+              className={`card cursor-pointer hover:shadow-lg transition-all ${business.bgColor} ${business.borderColor} border`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${business.color} text-white`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{business.title}</h3>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Income</p>
+                  <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                    {formatCurrency(business.income)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Puhunan</p>
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                    {formatCurrency(business.puhunan)}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Profit</p>
+                  <p className={`text-sm font-bold ${business.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {formatCurrency(business.profit)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Weekly & Monthly Summary */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="card p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary-500" />
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">This Week</h4>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+            {formatCurrency(weeklyIncome)}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Net Profit - Unpaid Payables (₱{unpaidPayables.toLocaleString()})
+            {format(weekStart, 'MMM dd')} - {format(weekEnd, 'MMM dd')}
           </p>
         </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="card p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Income Entries</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">{incomes?.length || 0}</p>
-        </div>
-        <div className="card p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Expense Entries</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">{expenses?.length || 0}</p>
-        </div>
-        <div className="card p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Unpaid Payables</p>
-          <p className="text-lg font-bold text-red-500">{payables?.filter(p => p.status !== 'paid').length || 0}</p>
-        </div>
-        <div className="card p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Total Transactions</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">
-            {(incomes?.length || 0) + (expenses?.length || 0) + (riceCredits?.length || 0) + (breadOrders?.length || 0)}
+        <div className="card p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary-500" />
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">This Month</h4>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+            {formatCurrency(monthlyIncome)}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {format(monthStart, 'MMM dd')} - {format(monthEnd, 'MMM dd')}
           </p>
         </div>
       </div>
@@ -309,100 +724,19 @@ const Wallet = () => {
 
         <div className="card">
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-            Payables by Category
+            Receivables Breakdown
           </h4>
           <div className="h-64">
-            {Object.keys(payableTotals.byCategory || {}).length === 0 ? (
+            {receivables === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-                <p className="text-sm">No payables data</p>
+                <p className="text-sm">No receivables</p>
               </div>
             ) : (
-              <Doughnut data={expenseCategoryData} options={doughnutOptions} />
+              <Doughnut data={receivableData} options={doughnutOptions} />
             )}
           </div>
         </div>
       </div>
-
-      {/* Income Breakdown */}
-      <div className="card">
-        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-          Income Breakdown
-        </h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Income Module</p>
-            <p className="text-lg font-bold text-green-600">
-              ₱{incomes?.reduce((sum, i) => sum + (i.amount || 0), 0)?.toLocaleString() || 0}
-            </p>
-          </div>
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Rice Credit</p>
-            <p className="text-lg font-bold text-blue-600">
-              ₱{riceCredits?.reduce((sum, t) => {
-                const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
-                return sum + paid
-              }, 0)?.toLocaleString() || 0}
-            </p>
-          </div>
-          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Bread Orders</p>
-            <p className="text-lg font-bold text-yellow-600">
-              ₱{breadOrders?.reduce((sum, o) => {
-                const paid = o.payments?.reduce((s, p) => s + p.amount, 0) || 0
-                return sum + paid
-              }, 0)?.toLocaleString() || 0}
-            </p>
-          </div>
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Cash Loans</p>
-            <p className="text-lg font-bold text-purple-600">
-              ₱{cashLoans?.reduce((sum, l) => {
-                const paid = l.payments?.reduce((s, p) => s + p.amount, 0) || 0
-                return sum + paid
-              }, 0)?.toLocaleString() || 0}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Unpaid Payables List */}
-      {payables?.filter(p => p.status !== 'paid').length > 0 && (
-        <div className="card">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-            Unpaid Payables ({payables.filter(p => p.status !== 'paid').length})
-          </h4>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Name</th>
-                  <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Category</th>
-                  <th className="text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Amount</th>
-                  <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Due Date</th>
-                  <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payables.filter(p => p.status !== 'paid').slice(0, 5).map(p => (
-                  <tr key={p.id} className="border-b border-gray-100 dark:border-gray-800">
-                    <td className="py-2 text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
-                    <td className="py-2 text-sm text-gray-600 dark:text-gray-400">{p.category}</td>
-                    <td className="py-2 text-sm text-right font-medium text-red-600">₱{p.amount.toLocaleString()}</td>
-                    <td className="py-2 text-sm text-gray-500 dark:text-gray-400">
-                      {p.dueDate ? new Date(p.dueDate).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="py-2 text-sm">
-                      <span className={`badge ${p.status === 'overdue' ? 'badge-danger' : 'badge-warning'}`}>
-                        {p.status === 'overdue' ? 'Overdue' : 'Unpaid'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
