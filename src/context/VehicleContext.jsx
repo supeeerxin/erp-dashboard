@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 import { supabase } from '../services/supabase'
 
 const VehicleContext = createContext()
@@ -16,6 +17,7 @@ export const VehicleProvider = ({ children }) => {
   const [vehicles, setVehicles] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
   const loadVehicles = async () => {
     try {
@@ -66,6 +68,7 @@ export const VehicleProvider = ({ children }) => {
 
       setVehicles(prev => [inserted[0], ...prev])
       showNotification('Vehicle added successfully!', 'success')
+      addLog('Created', 'Vehicle', `Added vehicle: ${data.brand} ${data.model} - ${data.plate_number}`)
       return inserted[0]
     } catch (error) {
       console.error('Error adding vehicle:', error)
@@ -76,6 +79,7 @@ export const VehicleProvider = ({ children }) => {
 
   const updateVehicle = async (id, data) => {
     try {
+      const oldVehicle = vehicles.find(v => v.id === id)
       const { data: updated, error } = await supabase
         .from('vehicles')
         .update({
@@ -95,6 +99,7 @@ export const VehicleProvider = ({ children }) => {
 
       setVehicles(prev => prev.map(v => v.id === id ? updated[0] : v))
       showNotification('Vehicle updated successfully!', 'success')
+      addLog('Updated', 'Vehicle', `Updated vehicle: ${oldVehicle?.plate_number || 'Unknown'} → ${data.plate_number}`)
     } catch (error) {
       console.error('Error updating vehicle:', error)
       showNotification('Failed to update vehicle', 'error')
@@ -103,6 +108,7 @@ export const VehicleProvider = ({ children }) => {
 
   const deleteVehicle = async (id) => {
     try {
+      const vehicle = vehicles.find(v => v.id === id)
       const { error } = await supabase
         .from('vehicles')
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
@@ -112,6 +118,7 @@ export const VehicleProvider = ({ children }) => {
 
       setVehicles(prev => prev.filter(v => v.id !== id))
       showNotification('Vehicle moved to trash!', 'warning')
+      addLog('Deleted', 'Vehicle', `Soft deleted vehicle: ${vehicle?.plate_number || 'Unknown'}`)
     } catch (error) {
       console.error('Error deleting vehicle:', error)
       showNotification('Failed to delete vehicle', 'error')
@@ -120,6 +127,7 @@ export const VehicleProvider = ({ children }) => {
 
   const updateVehicleStatus = async (id, status) => {
     try {
+      const vehicle = vehicles.find(v => v.id === id)
       const { error } = await supabase
         .from('vehicles')
         .update({ 
@@ -133,6 +141,7 @@ export const VehicleProvider = ({ children }) => {
       setVehicles(prev => prev.map(v => 
         v.id === id ? { ...v, status } : v
       ))
+      addLog('Updated', 'Vehicle', `Vehicle ${vehicle?.plate_number || 'Unknown'} status changed to ${status}`)
     } catch (error) {
       console.error('Error updating vehicle status:', error)
     }
