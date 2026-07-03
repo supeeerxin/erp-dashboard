@@ -13,6 +13,7 @@ import { IncomeProvider } from './context/IncomeContext'
 import { ExpenseProvider } from './context/ExpenseContext'
 import { PayableProvider } from './context/PayableContext'
 import { AuditProvider } from './context/AuditContext'
+import { VehicleProvider } from './context/VehicleContext'
 
 import ProtectedRoute from './components/common/ProtectedRoute'
 import Layout from './components/layout/Layout'
@@ -49,6 +50,7 @@ function App() {
                       <IncomeProvider>
                         <ExpenseProvider>
                           <PayableProvider>
+                            <VehicleProvider>
                             <Router>
                               <Suspense fallback={<LoadingSkeleton />}>
                                 <Routes>
@@ -73,6 +75,7 @@ function App() {
                                 </Routes>
                               </Suspense>
                             </Router>
+                              </VehicleProvider>
                           </PayableProvider>
                         </ExpenseProvider>
                       </IncomeProvider>
