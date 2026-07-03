@@ -4,22 +4,27 @@ import { useCustomers } from '../../context/CustomerContext'
 import CustomerModal from '../../components/modals/CustomerModal'
 
 const Customers = () => {
-  const { customers, deletedCustomers, addCustomer, updateCustomer, deleteCustomer, restoreCustomer, permanentDeleteCustomer } = useCustomers()
+  const { customers, loading, addCustomer, updateCustomer, deleteCustomer, restoreCustomer, permanentDeleteCustomer } = useCustomers()
   const [searchQuery, setSearchQuery] = useState('')
   const [showTrash, setShowTrash] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState(null)
+  const [deletedCustomers, setDeletedCustomers] = useState([])
 
-  const currentList = showTrash ? deletedCustomers : customers
-  
-  const filteredCustomers = currentList.filter(customer =>
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  // Load deleted customers
+  const loadDeletedCustomers = async () => {
+    const result = await useCustomers().getDeletedCustomers()
+    setDeletedCustomers(result)
+  }
+
+  const filteredCustomers = (showTrash ? deletedCustomers : customers).filter(customer =>
+    customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.contact?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.address?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleAddCustomer = (data) => {
-    addCustomer(data)
+  const handleAddCustomer = async (data) => {
+    await addCustomer(data)
   }
 
   const handleEditCustomer = (customer) => {
@@ -27,30 +32,65 @@ const Customers = () => {
     setIsModalOpen(true)
   }
 
-  const handleUpdateCustomer = (data) => {
-    updateCustomer(editingCustomer.id, data)
+  const handleUpdateCustomer = async (data) => {
+    await updateCustomer(editingCustomer.id, data)
     setEditingCustomer(null)
   }
 
-  const handleDeleteCustomer = (id) => {
+  const handleDeleteCustomer = async (id) => {
     if (window.confirm('Move this customer to trash?')) {
-      deleteCustomer(id)
+      await deleteCustomer(id)
+      if (showTrash) {
+        loadDeletedCustomers()
+      }
     }
   }
 
-  const handleRestoreCustomer = (id) => {
-    restoreCustomer(id)
+  const handleRestoreCustomer = async (id) => {
+    await restoreCustomer(id)
+    loadDeletedCustomers()
   }
 
-  const handlePermanentDelete = (id) => {
+  const handlePermanentDelete = async (id) => {
     if (window.confirm('Permanently delete this customer? This cannot be undone!')) {
-      permanentDeleteCustomer(id)
+      await permanentDeleteCustomer(id)
+      loadDeletedCustomers()
     }
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setEditingCustomer(null)
+  }
+
+  const toggleTrash = () => {
+    setShowTrash(!showTrash)
+    if (!showTrash) {
+      loadDeletedCustomers()
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between">
+          <div className="skeleton h-8 w-48"></div>
+          <div className="skeleton h-10 w-32"></div>
+        </div>
+        <div className="card">
+          <div className="skeleton h-12 w-full"></div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="card">
+              <div className="skeleton h-16 w-full"></div>
+              <div className="skeleton h-4 w-32 mt-2"></div>
+              <div className="skeleton h-4 w-24 mt-2"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -65,11 +105,11 @@ const Customers = () => {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowTrash(!showTrash)}
+            onClick={toggleTrash}
             className={`btn-secondary flex items-center gap-2 ${showTrash ? 'bg-red-500 text-white hover:bg-red-600' : ''}`}
           >
             <Archive className="w-4 h-4" />
-            {showTrash ? 'Active' : `Trash (${deletedCustomers.length})`}
+            {showTrash ? 'Active' : 'Trash'}
           </button>
           {!showTrash && (
             <button
@@ -84,7 +124,7 @@ const Customers = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{customers.length}</p>
@@ -92,6 +132,10 @@ const Customers = () => {
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">In Trash</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{deletedCustomers.length}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{customers.length + deletedCustomers.length}</p>
         </div>
       </div>
 
@@ -145,13 +189,13 @@ const Customers = () => {
                     }`}>
                       {customer.type || 'Regular'}
                     </span>
-                    {customer.isDeleted && (
+                    {customer.is_deleted && (
                       <span className="badge badge-danger ml-1">Deleted</span>
                     )}
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  {customer.isDeleted ? (
+                  {customer.is_deleted ? (
                     <>
                       <button
                         onClick={() => handleRestoreCustomer(customer.id)}
@@ -210,9 +254,9 @@ const Customers = () => {
 
               <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {customer.isDeleted ? 
-                    `Deleted: ${new Date(customer.deletedAt).toLocaleDateString()}` :
-                    `Added: ${new Date(customer.createdAt).toLocaleDateString()}`
+                  {customer.is_deleted ? 
+                    `Deleted: ${new Date(customer.deleted_at).toLocaleDateString()}` :
+                    `Added: ${new Date(customer.created_at).toLocaleDateString()}`
                   }
                 </p>
               </div>
@@ -221,7 +265,7 @@ const Customers = () => {
         </div>
       )}
 
-      {/* Customer Modal */}
+      {/* Modal */}
       <CustomerModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
