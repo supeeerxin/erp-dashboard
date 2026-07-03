@@ -33,7 +33,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Payables = lazy(() => import('./pages/Payables'))
 const AuditLog = lazy(() => import('./pages/AuditLog'))
 const DueDates = lazy(() => import('./pages/DueDates'))
-const Vehicles = lazy(() => import('./pages/Vehicles'))
+const Vehicles = lazy(() => import('./pages/Vehicles'))  // <-- ADDED
 const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
@@ -51,33 +51,33 @@ function App() {
                       <IncomeProvider>
                         <ExpenseProvider>
                           <PayableProvider>
-                            <VehicleProvider>
-                            <Router>
-                              <Suspense fallback={<LoadingSkeleton />}>
-                                <Routes>
-                                  <Route path="/login" element={<Login />} />
-                                  <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                                    <Route index element={<Navigate to="/dashboard" replace />} />
-                                    <Route path="dashboard" element={<Dashboard />} />
-                                    <Route path="rice-credit" element={<RiceCredit />} />
-                                    <Route path="cash-loans" element={<CashLoans />} />
-                                    <Route path="bread-orders" element={<BreadOrders />} />
-                                    <Route path="customers" element={<Customers />} />
-                                    <Route path="income" element={<Income />} />
-                                    <Route path="expenses" element={<Expenses />} />
-                                    <Route path="wallet" element={<Wallet />} />
-                                    <Route path="reports" element={<Reports />} />
-                                    <Route path="settings" element={<Settings />} />
-                                    <Route path="payables" element={<Payables />} />
-                                    <Route path="audit-log" element={<AuditLog />} />
-                                    <Route path="due-dates" element={<DueDates />} />
-                                    <Route path="vehicles" element={<Vehicles />} />
-                                  </Route>
-                                  <Route path="*" element={<NotFound />} />
-                                </Routes>
-                              </Suspense>
-                            </Router>
-                              </VehicleProvider>
+                            <VehicleProvider>  {/* <-- ADDED */}
+                              <Router>
+                                <Suspense fallback={<LoadingSkeleton />}>
+                                  <Routes>
+                                    <Route path="/login" element={<Login />} />
+                                    <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                                      <Route index element={<Navigate to="/dashboard" replace />} />
+                                      <Route path="dashboard" element={<Dashboard />} />
+                                      <Route path="rice-credit" element={<RiceCredit />} />
+                                      <Route path="cash-loans" element={<CashLoans />} />
+                                      <Route path="bread-orders" element={<BreadOrders />} />
+                                      <Route path="customers" element={<Customers />} />
+                                      <Route path="income" element={<Income />} />
+                                      <Route path="expenses" element={<Expenses />} />
+                                      <Route path="wallet" element={<Wallet />} />
+                                      <Route path="reports" element={<Reports />} />
+                                      <Route path="settings" element={<Settings />} />
+                                      <Route path="payables" element={<Payables />} />
+                                      <Route path="audit-log" element={<AuditLog />} />
+                                      <Route path="due-dates" element={<DueDates />} />
+                                      <Route path="vehicles" element={<Vehicles />} />  {/* <-- ADDED */}
+                                    </Route>
+                                    <Route path="*" element={<NotFound />} />
+                                  </Routes>
+                                </Suspense>
+                              </Router>
+                            </VehicleProvider>  {/* <-- ADDED */}
                           </PayableProvider>
                         </ExpenseProvider>
                       </IncomeProvider>
