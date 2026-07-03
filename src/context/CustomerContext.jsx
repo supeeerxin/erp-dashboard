@@ -41,6 +41,23 @@ export const CustomerProvider = ({ children }) => {
     loadCustomers()
   }, [])
 
+  // Get deleted customers
+  const getDeletedCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('is_deleted', true)
+        .order('deleted_at', { ascending: false })
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error loading deleted customers:', error)
+      return []
+    }
+  }
+
   // Add customer
   const addCustomer = async (customerData) => {
     try {
@@ -106,7 +123,10 @@ export const CustomerProvider = ({ children }) => {
     try {
       const { error } = await supabase
         .from('customers')
-        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+        .update({ 
+          is_deleted: true, 
+          deleted_at: new Date().toISOString() 
+        })
         .eq('id', id)
 
       if (error) throw error
@@ -124,7 +144,10 @@ export const CustomerProvider = ({ children }) => {
     try {
       const { error } = await supabase
         .from('customers')
-        .update({ is_deleted: false, deleted_at: null })
+        .update({ 
+          is_deleted: false, 
+          deleted_at: null 
+        })
         .eq('id', id)
 
       if (error) throw error
@@ -158,23 +181,6 @@ export const CustomerProvider = ({ children }) => {
   // Get customer by ID
   const getCustomer = (id) => {
     return customers.find(customer => customer.id === id)
-  }
-
-  // Get deleted customers
-  const getDeletedCustomers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('is_deleted', true)
-        .order('deleted_at', { ascending: false })
-
-      if (error) throw error
-      return data || []
-    } catch (error) {
-      console.error('Error loading deleted customers:', error)
-      return []
-    }
   }
 
   const value = {
