@@ -10,6 +10,8 @@ import RentalModal from '../../components/modals/RentalModal'
 const CarRental = () => {
   const [activeTab, setActiveTab] = useState('vehicles')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedDate, setSelectedDate] = useState(null)
+  const [selectedDayRentals, setSelectedDayRentals] = useState([])
 
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false)
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
@@ -17,8 +19,6 @@ const CarRental = () => {
   const [editingVehicle, setEditingVehicle] = useState(null)
   const [editingDriver, setEditingDriver] = useState(null)
   const [editingRental, setEditingRental] = useState(null)
-  const [selectedDate, setSelectedDate] = useState(null)
-const [selectedDayRentals, setSelectedDayRentals] = useState([])
 
   const { vehicles, loading: vehiclesLoading, addVehicle, updateVehicle, deleteVehicle } = useVehicles()
   const { drivers, loading: driversLoading, addDriver, updateDriver, deleteDriver } = useDrivers()
@@ -342,171 +342,178 @@ const [selectedDayRentals, setSelectedDayRentals] = useState([])
           </div>
         )
 
-    case 'schedule':
-  // Get current month data
-  const now = new Date()
-  const currentMonth = now.getMonth()
-  const currentYear = now.getFullYear()
-  const firstDay = new Date(currentYear, currentMonth, 1).getDay()
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-  
-  // Get rentals for current month
-  const monthRentals = rentals.filter(r => {
-    const start = new Date(r.start_date)
-    const end = r.end_date ? new Date(r.end_date) : start
-    return (start.getMonth() === currentMonth || end.getMonth() === currentMonth) &&
-           (start.getFullYear() === currentYear || end.getFullYear() === currentYear)
-  })
+      case 'schedule':
+        // Get current month data
+        const now = new Date()
+        const currentMonth = now.getMonth()
+        const currentYear = now.getFullYear()
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay()
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+        
+        // Get rentals for current month
+        const monthRentals = rentals.filter(r => {
+          if (!r.start_date) return false
+          const start = new Date(r.start_date)
+          const end = r.end_date ? new Date(r.end_date) : start
+          return (start.getMonth() === currentMonth || end.getMonth() === currentMonth) &&
+                 (start.getFullYear() === currentYear || end.getFullYear() === currentYear)
+        })
 
-  // Get rentals for a specific day
-  const getRentalsForDay = (day) => {
-    const date = new Date(currentYear, currentMonth, day)
-    return monthRentals.filter(r => {
-      const start = new Date(r.start_date)
-      const end = r.end_date ? new Date(r.end_date) : start
-      return date >= start && date <= end
-    })
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Calendar Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
-        </h3>
-      </div>
-
-      {/* Calendar Grid */}
-      <div className="card">
-        <div className="grid grid-cols-7 gap-1">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 py-2">
-              {day}
-            </div>
-          ))}
+        // Get rentals for a specific day
+        const getRentalsForDay = (day) => {
+          const date = new Date(currentYear, currentMonth, day)
+          date.setHours(0, 0, 0, 0)
           
-          {/* Empty days before first day of month */}
-          {[...Array(firstDay)].map((_, i) => (
-            <div key={`empty-${i}`} className="min-h-20 rounded-lg p-2 bg-gray-50 dark:bg-gray-800/30" />
-          ))}
-          
-          {/* Calendar days */}
-          {[...Array(daysInMonth)].map((_, i) => {
-            const day = i + 1
-            const dayRentals = getRentalsForDay(day)
-            const hasRental = dayRentals.length > 0
-            const isToday = day === now.getDate() && currentMonth === now.getMonth() && currentYear === now.getFullYear()
+          return monthRentals.filter(r => {
+            const start = new Date(r.start_date)
+            start.setHours(0, 0, 0, 0)
             
-            return (
-              <div 
-                key={day} 
-                className={`
-                  min-h-20 rounded-lg p-2 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all
-                  ${isToday ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500' : ''}
-                  ${hasRental ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}
-                `}
-                onClick={() => {
-                  if (hasRental) {
-                    setSelectedDate(new Date(currentYear, currentMonth, day))
-                    setSelectedDayRentals(dayRentals)
-                  }
-                }}
-              >
-                <div className="flex justify-between items-start">
-                  <span className={`text-sm font-medium ${isToday ? 'text-primary-600' : ''}`}>
+            const end = r.end_date ? new Date(r.end_date) : new Date(r.start_date)
+            end.setHours(23, 59, 59, 999)
+            
+            return date >= start && date <= end
+          })
+        }
+
+        return (
+          <div className="space-y-4">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h3>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="card">
+              <div className="grid grid-cols-7 gap-1">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 py-2">
                     {day}
-                  </span>
-                  {hasRental && (
-                    <span className="text-xs bg-yellow-500 text-white rounded-full px-1.5 py-0.5">
-                      {dayRentals.length}
-                    </span>
-                  )}
-                </div>
-                {hasRental && (
-                  <div className="mt-1">
-                    {dayRentals.slice(0, 2).map((rental, idx) => {
-                      const vehicle = vehicles.find(v => v.id === rental.vehicle_id)
-                      return (
-                        <p key={idx} className="text-xs text-gray-600 dark:text-gray-300 truncate">
-                          🚗 {vehicle?.brand || 'Car'} - {rental.driver_name?.split(' ')[0] || 'Driver'}
-                        </p>
-                      )
-                    })}
-                    {dayRentals.length > 2 && (
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        +{dayRentals.length - 2} more
-                      </p>
-                    )}
                   </div>
-                )}
+                ))}
+                
+                {/* Empty days before first day of month */}
+                {[...Array(firstDay)].map((_, i) => (
+                  <div key={`empty-${i}`} className="min-h-20 rounded-lg p-2 bg-gray-50 dark:bg-gray-800/30" />
+                ))}
+                
+                {/* Calendar days */}
+                {[...Array(daysInMonth)].map((_, i) => {
+                  const day = i + 1
+                  const dayRentals = getRentalsForDay(day)
+                  const hasRental = dayRentals.length > 0
+                  const isToday = day === now.getDate() && currentMonth === now.getMonth() && currentYear === now.getFullYear()
+                  
+                  return (
+                    <div 
+                      key={day} 
+                      className={`
+                        min-h-20 rounded-lg p-2 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all
+                        ${isToday ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500' : ''}
+                        ${hasRental ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}
+                      `}
+                      onClick={() => {
+                        if (hasRental) {
+                          setSelectedDate(new Date(currentYear, currentMonth, day))
+                          setSelectedDayRentals(dayRentals)
+                        }
+                      }}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className={`text-sm font-medium ${isToday ? 'text-primary-600' : ''}`}>
+                          {day}
+                        </span>
+                        {hasRental && (
+                          <span className="text-xs bg-yellow-500 text-white rounded-full px-1.5 py-0.5">
+                            {dayRentals.length}
+                          </span>
+                        )}
+                      </div>
+                      {hasRental && (
+                        <div className="mt-1">
+                          {dayRentals.slice(0, 2).map((rental, idx) => {
+                            const vehicle = vehicles.find(v => v.id === rental.vehicle_id)
+                            return (
+                              <p key={idx} className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                                🚗 {vehicle?.brand || 'Car'} - {rental.driver_name?.split(' ')[0] || 'Driver'}
+                              </p>
+                            )
+                          })}
+                          {dayRentals.length > 2 && (
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                              +{dayRentals.length - 2} more
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
-        </div>
-      </div>
+            </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-500"></div>
-          <span className="text-gray-600 dark:text-gray-400">Has Rental/Schedule</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-primary-50 dark:bg-primary-900/20 border border-primary-500"></div>
-          <span className="text-gray-600 dark:text-gray-400">Today</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-gray-200 dark:border-gray-700"></div>
-          <span className="text-gray-600 dark:text-gray-400">Available</span>
-        </div>
-      </div>
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-500"></div>
+                <span className="text-gray-600 dark:text-gray-400">Has Rental/Schedule</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-primary-50 dark:bg-primary-900/20 border border-primary-500"></div>
+                <span className="text-gray-600 dark:text-gray-400">Today</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded border border-gray-200 dark:border-gray-700"></div>
+                <span className="text-gray-600 dark:text-gray-400">Available</span>
+              </div>
+            </div>
 
-      {/* Selected Day Details */}
-      {selectedDate && selectedDayRentals && selectedDayRentals.length > 0 && (
-        <div className="card">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-            📅 {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-          </h4>
-          <div className="space-y-2">
-            {selectedDayRentals.map((rental) => {
-              const vehicle = vehicles.find(v => v.id === rental.vehicle_id)
-              return (
-                <div key={rental.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {vehicle?.brand} {vehicle?.model} - {rental.vehicle_plate}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Driver: {rental.driver_name}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`badge ${rental.status === 'active' ? 'badge-warning' : rental.status === 'completed' ? 'badge-success' : 'badge-danger'}`}>
-                      {rental.status}
-                    </span>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {rental.start_date} → {rental.end_date || 'Ongoing'}
-                    </p>
-                  </div>
+            {/* Selected Day Details */}
+            {selectedDate && selectedDayRentals && selectedDayRentals.length > 0 && (
+              <div className="card">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  📅 {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </h4>
+                <div className="space-y-2">
+                  {selectedDayRentals.map((rental) => {
+                    const vehicle = vehicles.find(v => v.id === rental.vehicle_id)
+                    return (
+                      <div key={rental.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {vehicle?.brand} {vehicle?.model} - {rental.vehicle_plate}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Driver: {rental.driver_name}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`badge ${rental.status === 'active' ? 'badge-warning' : rental.status === 'completed' ? 'badge-success' : 'badge-danger'}`}>
+                            {rental.status}
+                          </span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {rental.start_date} → {rental.end_date || 'Ongoing'}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+              </div>
+            )}
 
-      {monthRentals.length === 0 && (
-        <div className="card">
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <Calendar className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-            <p className="text-sm">No rentals scheduled this month</p>
-            <p className="text-xs mt-1">Create a rental to see it on the calendar</p>
+            {monthRentals.length === 0 && (
+              <div className="card">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <Calendar className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                  <p className="text-sm">No rentals scheduled this month</p>
+                  <p className="text-xs mt-1">Create a rental to see it on the calendar</p>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-    </div>
-  )
+        )
 
       default:
         return null
