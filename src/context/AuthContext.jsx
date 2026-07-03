@@ -1,4 +1,6 @@
-import React, { createContext, useState, useContext, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 
 const AuthContext = createContext()
 
@@ -16,30 +18,59 @@ export const AuthProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null
   })
   const [loading, setLoading] = useState(true)
+  const { showNotification } = useNotification()
+  const { addLog } = useAudit()
+
+  // Hardcoded admin users - username based
+  const adminUsers = [
+    {
+      id: 1,
+      name: 'Elora',
+      username: 'elora',
+      password: '202128',
+      role: 'admin'
+    },
+    {
+      id: 2,
+      name: 'Xinia',
+      username: 'xinia',
+      password: '202128',
+      role: 'admin'
+    }
+  ]
 
   useEffect(() => {
     setLoading(false)
   }, [])
 
-  const login = (email, password) => {
-    // Simple demo login - in production, this would validate against a backend
-    if (email === 'admin@erp.com' && password === 'admin123') {
+  const login = (username, password) => {
+    const foundUser = adminUsers.find(u => u.username === username && u.password === password)
+    
+    if (foundUser) {
       const userData = {
-        id: 1,
-        name: 'Admin User',
-        email: 'admin@erp.com',
-        role: 'Administrator'
+        id: foundUser.id,
+        name: foundUser.name,
+        username: foundUser.username,
+        role: foundUser.role
       }
       localStorage.setItem('user', JSON.stringify(userData))
       setUser(userData)
-      return { success: true }
+      addLog('Login', 'Auth', `${foundUser.name} logged in`)
+      showNotification(`Welcome back, ${foundUser.name}!`, 'success')
+      return { success: true, user: userData }
     }
-    return { success: false, message: 'Invalid email or password' }
+    
+    addLog('Login Failed', 'Auth', `Failed login attempt for ${username}`)
+    return { success: false, message: 'Invalid username or password' }
   }
 
   const logout = () => {
+    if (user) {
+      addLog('Logout', 'Auth', `${user.name} logged out`)
+    }
     localStorage.removeItem('user')
     setUser(null)
+    showNotification('Logged out successfully', 'info')
   }
 
   const value = {
@@ -47,7 +78,9 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    isAdmin: user?.role === 'admin',
+    users: adminUsers
   }
 
   return (
