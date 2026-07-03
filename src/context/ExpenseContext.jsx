@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 import { generateExpenseNumber } from '../utils/transactionUtils'
 
 const ExpenseContext = createContext()
@@ -16,6 +17,7 @@ export const ExpenseProvider = ({ children }) => {
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('expenses')
