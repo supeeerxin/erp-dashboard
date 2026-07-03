@@ -1,11 +1,17 @@
-import React, { createContext, useState, useContext } from 'react'
+import React, { createContext, useContext, useState } from 'react'
 
 const NotificationContext = createContext()
 
 export const useNotification = () => {
   const context = useContext(NotificationContext)
   if (!context) {
-    throw new Error('useNotification must be used within NotificationProvider')
+    // Return dummy functions to prevent errors
+    return {
+      notifications: [],
+      showNotification: () => {},
+      removeNotification: () => {},
+      clearAll: () => {}
+    }
   }
   return context
 }
