@@ -137,8 +137,19 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    
+    // Check required fields
     if (!formData.vehicle_id || !formData.driver_id || !formData.start_date || !formData.end_date) {
       alert('Please fill in all required fields')
+      return
+    }
+
+    // Validate dates - end date must be after start date
+    const start = new Date(formData.start_date)
+    const end = new Date(formData.end_date)
+    
+    if (end < start) {
+      alert('End date must be after start date')
       return
     }
 
@@ -166,9 +177,12 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
   let totalAmount = 0
 
   if (startDate && endDate) {
-    const diffTime = Math.abs(endDate - startDate)
-    totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-    totalAmount = totalDays * (parseFloat(formData.daily_boundary) || 0)
+    // Only calculate if end date is after start date
+    if (endDate >= startDate) {
+      const diffTime = Math.abs(endDate - startDate)
+      totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+      totalAmount = totalDays * (parseFloat(formData.daily_boundary) || 0)
+    }
   }
 
   // Get available vehicles for display
