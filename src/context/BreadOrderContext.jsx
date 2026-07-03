@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 import { generateOrderNumber } from '../utils/transactionUtils'
 
 const BreadOrderContext = createContext()
@@ -16,6 +17,7 @@ export const BreadOrderProvider = ({ children }) => {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
   useEffect(() => {
     const saved = localStorage.getItem('breadOrders')
@@ -60,7 +62,7 @@ export const BreadOrderProvider = ({ children }) => {
     
     setOrders(prev => [...prev, newOrder])
     showNotification(`Order ${newOrder.transactionNumber} created!`, 'success')
-    addLog('Created', 'Bread Order', `Created order: ${newOrder.transactionNumber} for ${data.customerName} (${boxes} boxes, ${pieces} pieces) - Total: ₱${totalSellingPrice}`)
+    addLog('Created', 'Bread Order', `Created order: ${newOrder.transactionNumber} for ${data.customerName}`)
     return newOrder
   }
 
@@ -93,7 +95,7 @@ export const BreadOrderProvider = ({ children }) => {
           type: 'payment'
         }]
         
-        addLog('Paid', 'Bread Order', `Payment of ₱${amount} recorded for ${order.transactionNumber} (Balance: ₱${newBalance})`)
+        addLog('Paid', 'Bread Order', `Payment of ₱${amount} recorded for ${order.transactionNumber}`)
         return {
           ...order,
           payments,
