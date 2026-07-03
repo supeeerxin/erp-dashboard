@@ -35,6 +35,9 @@ const AuditLog = lazy(() => import('./pages/AuditLog'))
 const DueDates = lazy(() => import('./pages/DueDates'))
 const Vehicles = lazy(() => import('./pages/Vehicles'))  // <-- ADDED
 const CarSchedule = lazy(() => import('./pages/CarSchedule'))
+const Drivers = lazy(() => import('./pages/Drivers'))
+const Rentals = lazy(() => import('./pages/Rentals'))
+const CarSchedule = lazy(() => import('./pages/CarSchedule'))
 const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
@@ -74,6 +77,9 @@ function App() {
                                       <Route path="due-dates" element={<DueDates />} />
                                       <Route path="vehicles" element={<Vehicles />} />  {/* <-- ADDED */}
                                       <Route path="car-schedule" element={<CarSchedule />} />
+                                      <Route path="drivers" element={<Drivers />} />
+<Route path="rentals" element={<Rentals />} />
+<Route path="car-schedule" element={<CarSchedule />} />
                                     </Route>
                                     <Route path="*" element={<NotFound />} />
                                   </Routes>
