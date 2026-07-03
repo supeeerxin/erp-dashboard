@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Car, Plus, Search, Edit2, Trash2, Eye, Calendar, DollarSign } from 'lucide-react'
+import { Car, Plus, Search, Edit2, Trash2 } from 'lucide-react'
 import { useVehicles } from '../../context/VehicleContext'
 import VehicleModal from '../../components/modals/VehicleModal'
 
