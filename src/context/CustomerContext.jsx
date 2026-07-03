@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { supabase } from '../services/supabase'
 
 const CustomerContext = createContext()
 
@@ -16,81 +17,168 @@ export const CustomerProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
 
-  useEffect(() => {
-    const saved = localStorage.getItem('customers')
-    if (saved) {
-      setCustomers(JSON.parse(saved))
+  // Load customers from Supabase
+  const loadCustomers = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setCustomers(data || [])
+    } catch (error) {
+      console.error('Error loading customers:', error)
+      showNotification('Failed to load customers', 'error')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadCustomers()
   }, [])
 
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('customers', JSON.stringify(customers))
+  // Add customer
+  const addCustomer = async (customerData) => {
+    try {
+      const newCustomer = {
+        id: Date.now(),
+        name: customerData.name,
+        contact: customerData.contact || '',
+        email: customerData.email || '',
+        address: customerData.address || '',
+        type: customerData.type || 'regular',
+        is_deleted: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([newCustomer])
+        .select()
+
+      if (error) throw error
+
+      setCustomers(prev => [data[0], ...prev])
+      showNotification('Customer added successfully!', 'success')
+      return data[0]
+    } catch (error) {
+      console.error('Error adding customer:', error)
+      showNotification('Failed to add customer', 'error')
+      return null
     }
-  }, [customers, loading])
+  }
 
-  const addCustomer = (customerData) => {
-    const newCustomer = {
-      id: Date.now(),
-      ...customerData,
-      isDeleted: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  // Update customer
+  const updateCustomer = async (id, customerData) => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .update({
+          name: customerData.name,
+          contact: customerData.contact || '',
+          email: customerData.email || '',
+          address: customerData.address || '',
+          type: customerData.type || 'regular',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+
+      setCustomers(prev => prev.map(customer =>
+        customer.id === id ? data[0] : customer
+      ))
+      showNotification('Customer updated successfully!', 'success')
+    } catch (error) {
+      console.error('Error updating customer:', error)
+      showNotification('Failed to update customer', 'error')
     }
-    setCustomers(prev => [...prev, newCustomer])
-    showNotification('Customer added successfully!', 'success')
-    return newCustomer
   }
 
-  const updateCustomer = (id, customerData) => {
-    setCustomers(prev => prev.map(customer => 
-      customer.id === id && !customer.isDeleted
-        ? { ...customer, ...customerData, updatedAt: new Date().toISOString() }
-        : customer
-    ))
-    showNotification('Customer updated successfully!', 'success')
+  // Soft delete customer
+  const deleteCustomer = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setCustomers(prev => prev.filter(customer => customer.id !== id))
+      showNotification('Customer moved to trash!', 'warning')
+    } catch (error) {
+      console.error('Error deleting customer:', error)
+      showNotification('Failed to delete customer', 'error')
+    }
   }
 
-  const deleteCustomer = (id) => {
-    setCustomers(prev => prev.map(customer =>
-      customer.id === id
-        ? { ...customer, isDeleted: true, deletedAt: new Date().toISOString() }
-        : customer
-    ))
-    showNotification('Customer moved to trash!', 'warning')
+  // Restore customer
+  const restoreCustomer = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ is_deleted: false, deleted_at: null })
+        .eq('id', id)
+
+      if (error) throw error
+
+      await loadCustomers()
+      showNotification('Customer restored successfully!', 'success')
+    } catch (error) {
+      console.error('Error restoring customer:', error)
+      showNotification('Failed to restore customer', 'error')
+    }
   }
 
-  const restoreCustomer = (id) => {
-    setCustomers(prev => prev.map(customer =>
-      customer.id === id
-        ? { ...customer, isDeleted: false, deletedAt: null }
-        : customer
-    ))
-    showNotification('Customer restored successfully!', 'success')
+  // Permanently delete customer
+  const permanentDeleteCustomer = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setCustomers(prev => prev.filter(customer => customer.id !== id))
+      showNotification('Customer permanently deleted!', 'error')
+    } catch (error) {
+      console.error('Error permanently deleting customer:', error)
+      showNotification('Failed to permanently delete customer', 'error')
+    }
   }
 
-  const permanentDeleteCustomer = (id) => {
-    setCustomers(prev => prev.filter(customer => customer.id !== id))
-    showNotification('Customer permanently deleted!', 'error')
-  }
-
-  const getActiveCustomers = () => {
-    return customers.filter(customer => !customer.isDeleted)
-  }
-
-  const getDeletedCustomers = () => {
-    return customers.filter(customer => customer.isDeleted)
-  }
-
+  // Get customer by ID
   const getCustomer = (id) => {
     return customers.find(customer => customer.id === id)
   }
 
+  // Get deleted customers
+  const getDeletedCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('is_deleted', true)
+        .order('deleted_at', { ascending: false })
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error loading deleted customers:', error)
+      return []
+    }
+  }
+
   const value = {
-    customers: getActiveCustomers(),
-    deletedCustomers: getDeletedCustomers(),
-    allCustomers: customers,
+    customers,
     loading,
     addCustomer,
     updateCustomer,
@@ -98,8 +186,8 @@ export const CustomerProvider = ({ children }) => {
     restoreCustomer,
     permanentDeleteCustomer,
     getCustomer,
-    getActiveCustomers,
-    getDeletedCustomers
+    getDeletedCustomers,
+    refreshCustomers: loadCustomers
   }
 
   return (
