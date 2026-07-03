@@ -30,7 +30,6 @@ export const RentalProvider = ({ children }) => {
       setRentals(data || [])
     } catch (error) {
       console.error('Error loading rentals:', error)
-      showNotification('Failed to load rentals', 'error')
     } finally {
       setLoading(false)
     }
@@ -42,23 +41,29 @@ export const RentalProvider = ({ children }) => {
 
   const addRental = async (data) => {
     try {
-      const totalDays = Math.ceil((new Date(data.end_date) - new Date(data.start_date)) / (1000 * 60 * 60 * 24))
-      const totalAmount = totalDays * data.daily_boundary
+      console.log('Adding rental with data:', data)
+
+      const startDate = new Date(data.start_date)
+      const endDate = new Date(data.end_date)
+      const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+      const totalAmount = totalDays * (data.daily_boundary || 0)
+      const downPayment = data.down_payment || 0
+      const remainingBalance = totalAmount - downPayment
 
       const newRental = {
         id: Date.now(),
         transaction_number: `RENT-${Date.now().toString().slice(-8)}`,
         vehicle_id: data.vehicle_id,
         driver_id: data.driver_id,
-        driver_name: data.driver_name,
-        vehicle_plate: data.vehicle_plate,
+        driver_name: data.driver_name || '',
+        vehicle_plate: data.vehicle_plate || '',
         start_date: data.start_date,
         end_date: data.end_date,
         total_days: totalDays,
-        daily_boundary: data.daily_boundary,
+        daily_boundary: data.daily_boundary || 0,
         total_amount: totalAmount,
-        down_payment: data.down_payment || 0,
-        remaining_balance: totalAmount - (data.down_payment || 0),
+        down_payment: downPayment,
+        remaining_balance: remainingBalance,
         status: 'active',
         notes: data.notes || '',
         is_deleted: false,
@@ -66,12 +71,18 @@ export const RentalProvider = ({ children }) => {
         updated_at: new Date().toISOString()
       }
 
+      console.log('Inserting rental:', newRental)
+
       const { data: inserted, error } = await supabase
         .from('rentals')
         .insert([newRental])
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase insert error:', error)
+        showNotification('Failed to create rental: ' + error.message, 'error')
+        return null
+      }
 
       // Update vehicle status to rented
       await supabase
@@ -103,7 +114,6 @@ export const RentalProvider = ({ children }) => {
 
       if (error) throw error
 
-      // If completed or cancelled, update vehicle status back to available
       if (status === 'completed' || status === 'cancelled') {
         await supabase
           .from('vehicles')
@@ -132,7 +142,6 @@ export const RentalProvider = ({ children }) => {
 
       if (error) throw error
 
-      // Update vehicle status back to available
       await supabase
         .from('vehicles')
         .update({ status: 'available', updated_at: new Date().toISOString() })
