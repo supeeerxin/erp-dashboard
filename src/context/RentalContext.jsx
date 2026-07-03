@@ -50,6 +50,14 @@ export const RentalProvider = ({ children }) => {
       const downPayment = data.down_payment || 0
       const remainingBalance = totalAmount - downPayment
 
+      // Initialize payments array with down payment if any
+      const initialPayments = downPayment > 0 ? [{
+        id: Date.now(),
+        amount: downPayment,
+        date: new Date().toISOString(),
+        type: 'downpayment'
+      }] : []
+
       const newRental = {
         id: Date.now(),
         transaction_number: `RENT-${Date.now().toString().slice(-8)}`,
@@ -64,7 +72,8 @@ export const RentalProvider = ({ children }) => {
         total_amount: totalAmount,
         down_payment: downPayment,
         remaining_balance: remainingBalance,
-        status: 'active',
+        payments: initialPayments,
+        status: remainingBalance <= 0 ? 'completed' : 'active',
         notes: data.notes || '',
         is_deleted: false,
         created_at: new Date().toISOString(),
@@ -89,6 +98,66 @@ export const RentalProvider = ({ children }) => {
     }
   }
 
+  // Add payment to rental
+  const addPayment = async (id, amount) => {
+    try {
+      const rental = rentals.find(r => r.id === id)
+      if (!rental) {
+        showNotification('Rental not found', 'error')
+        return null
+      }
+
+      // Check if amount exceeds remaining balance
+      if (amount > rental.remaining_balance) {
+        showNotification(`Amount exceeds remaining balance of ₱${rental.remaining_balance}`, 'error')
+        return null
+      }
+
+      const newBalance = rental.remaining_balance - amount
+      const payments = [...(rental.payments || []), {
+        id: Date.now(),
+        amount: amount,
+        date: new Date().toISOString(),
+        type: 'payment'
+      }]
+
+      const status = newBalance <= 0 ? 'completed' : 'active'
+
+      const { data: updated, error } = await supabase
+        .from('rentals')
+        .update({
+          remaining_balance: newBalance < 0 ? 0 : newBalance,
+          payments: payments,
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+
+      // Update vehicle status if completed
+      if (status === 'completed') {
+        await supabase
+          .from('vehicles')
+          .update({ status: 'available', updated_at: new Date().toISOString() })
+          .eq('id', rental.vehicle_id)
+      }
+
+      setRentals(prev => prev.map(r => 
+        r.id === id ? updated[0] : r
+      ))
+
+      addLog('Paid', 'Rental', `Payment of ₱${amount} recorded for ${rental.transaction_number}`)
+      showNotification(`Payment of ₱${amount} recorded!`, 'success')
+      return updated[0]
+    } catch (error) {
+      console.error('Error adding payment:', error)
+      showNotification('Failed to record payment', 'error')
+      return null
+    }
+  }
+
   const updateRentalStatus = async (id, status) => {
     try {
       const rental = rentals.find(r => r.id === id)
@@ -102,6 +171,13 @@ export const RentalProvider = ({ children }) => {
         .eq('id', id)
 
       if (error) throw error
+
+      if (status === 'completed' || status === 'cancelled') {
+        await supabase
+          .from('vehicles')
+          .update({ status: 'available', updated_at: new Date().toISOString() })
+          .eq('id', rental?.vehicle_id)
+      }
 
       setRentals(prev => prev.map(r => 
         r.id === id ? { ...r, status } : r
@@ -125,6 +201,11 @@ export const RentalProvider = ({ children }) => {
 
       if (error) throw error
 
+      await supabase
+        .from('vehicles')
+        .update({ status: 'available', updated_at: new Date().toISOString() })
+        .eq('id', rental?.vehicle_id)
+
       setRentals(prev => prev.filter(r => r.id !== id))
       showNotification('Rental deleted!', 'warning')
       addLog('Deleted', 'Rental', `Deleted rental: ${rental?.transaction_number || 'Unknown'}`)
@@ -142,6 +223,7 @@ export const RentalProvider = ({ children }) => {
     rentals,
     loading,
     addRental,
+    addPayment,
     updateRentalStatus,
     deleteRental,
     getRental,
