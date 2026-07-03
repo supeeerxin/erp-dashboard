@@ -1,29 +1,47 @@
 import React, { useState } from 'react'
-import { Car, User, Calendar, LayoutDashboard, Plus, Search, Edit2, Trash2, Phone, FileText, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { 
+  Car, 
+  User, 
+  Calendar, 
+  LayoutDashboard, 
+  Plus, 
+  Search, 
+  Edit2, 
+  Trash2, 
+  Phone, 
+  FileText, 
+  Clock, 
+  CheckCircle, 
+  XCircle,
+  DollarSign
+} from 'lucide-react'
 import { useVehicles } from '../../context/VehicleContext'
 import { useDrivers } from '../../context/DriverContext'
 import { useRentals } from '../../context/RentalContext'
 import VehicleModal from '../../components/modals/VehicleModal'
 import DriverModal from '../../components/modals/DriverModal'
 import RentalModal from '../../components/modals/RentalModal'
+import PaymentModal from '../../components/modals/PaymentModal'
 
 const CarRental = () => {
   const [activeTab, setActiveTab] = useState('vehicles')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedDayRentals, setSelectedDayRentals] = useState([])
-  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'completed', 'cancelled'
+  const [statusFilter, setStatusFilter] = useState('all')
 
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false)
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
   const [isRentalModalOpen, setIsRentalModalOpen] = useState(false)
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState(null)
   const [editingDriver, setEditingDriver] = useState(null)
   const [editingRental, setEditingRental] = useState(null)
+  const [selectedRental, setSelectedRental] = useState(null)
 
   const { vehicles, loading: vehiclesLoading, addVehicle, updateVehicle, deleteVehicle } = useVehicles()
   const { drivers, loading: driversLoading, addDriver, updateDriver, deleteDriver } = useDrivers()
-  const { rentals, loading: rentalsLoading, addRental, updateRentalStatus, deleteRental } = useRentals()
+  const { rentals, loading: rentalsLoading, addRental, addPayment, updateRentalStatus, deleteRental } = useRentals()
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -87,6 +105,7 @@ const CarRental = () => {
   const handleAddVehicle = async (data) => {
     await addVehicle(data)
     setIsVehicleModalOpen(false)
+    setEditingVehicle(null)
   }
 
   const handleUpdateVehicle = async (data) => {
@@ -104,6 +123,7 @@ const CarRental = () => {
   const handleAddDriver = async (data) => {
     await addDriver(data)
     setIsDriverModalOpen(false)
+    setEditingDriver(null)
   }
 
   const handleUpdateDriver = async (data) => {
@@ -121,6 +141,7 @@ const CarRental = () => {
   const handleAddRental = async (data) => {
     await addRental(data)
     setIsRentalModalOpen(false)
+    setEditingRental(null)
   }
 
   const handleUpdateRental = async (data) => {
@@ -137,6 +158,22 @@ const CarRental = () => {
 
   const handleRentalStatusChange = async (id, status) => {
     await updateRentalStatus(id, status)
+  }
+
+  const handlePayment = (rental) => {
+    setSelectedRental(rental)
+    setIsPaymentModalOpen(true)
+  }
+
+  const handleRecordPayment = async (amount) => {
+    await addPayment(selectedRental.id, amount)
+    setIsPaymentModalOpen(false)
+    setSelectedRental(null)
+  }
+
+  const handleClosePaymentModal = () => {
+    setIsPaymentModalOpen(false)
+    setSelectedRental(null)
   }
 
   const tabs = [
@@ -369,6 +406,10 @@ const CarRental = () => {
                     days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
                   }
                   
+                  // Calculate total paid
+                  const totalPaid = (rental.down_payment || 0) + (rental.payments?.reduce((sum, p) => sum + p.amount, 0) || 0)
+                  const isFullyPaid = rental.remaining_balance <= 0
+                  
                   return (
                     <div key={rental.id} className="card">
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -399,12 +440,34 @@ const CarRental = () => {
                               Total: ₱{rental.total_amount?.toLocaleString() || 0}
                             </span>
                             <span className="text-sm">
-                              Balance: ₱{rental.remaining_balance?.toLocaleString() || 0}
+                              Paid: ₱{totalPaid.toLocaleString()}
                             </span>
+                            {!isFullyPaid && rental.status !== 'cancelled' && (
+                              <span className="text-sm font-medium text-red-500">
+                                Balance: ₱{rental.remaining_balance?.toLocaleString() || 0}
+                              </span>
+                            )}
+                            {isFullyPaid && rental.status === 'completed' && (
+                              <span className="text-sm font-medium text-green-500">
+                                ✅ Fully Paid
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           {getRentalStatusBadge(rental.status)}
+                          
+                          {/* Payment Button - only for active rentals with remaining balance */}
+                          {rental.status === 'active' && rental.remaining_balance > 0 && (
+                            <button
+                              onClick={() => handlePayment(rental)}
+                              className="btn-success text-xs px-2 py-1 rounded-lg flex items-center gap-1"
+                              title="Record Payment"
+                            >
+                              <DollarSign className="w-3 h-3" /> Pay
+                            </button>
+                          )}
+                          
                           {rental.status === 'active' && (
                             <div className="flex gap-1">
                               <button 
@@ -472,12 +535,14 @@ const CarRental = () => {
 
         return (
           <div className="space-y-4">
+            {/* Calendar Header */}
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
               </h3>
             </div>
 
+            {/* Calendar Grid */}
             <div className="card">
               <div className="grid grid-cols-7 gap-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -486,10 +551,12 @@ const CarRental = () => {
                   </div>
                 ))}
                 
+                {/* Empty days before first day of month */}
                 {[...Array(firstDay)].map((_, i) => (
                   <div key={`empty-${i}`} className="min-h-20 rounded-lg p-2 bg-gray-50 dark:bg-gray-800/30" />
                 ))}
                 
+                {/* Calendar days */}
                 {[...Array(daysInMonth)].map((_, i) => {
                   const day = i + 1
                   const dayRentals = getRentalsForDay(day)
@@ -544,6 +611,7 @@ const CarRental = () => {
               </div>
             </div>
 
+            {/* Legend */}
             <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-500"></div>
@@ -559,6 +627,7 @@ const CarRental = () => {
               </div>
             </div>
 
+            {/* Selected Day Details */}
             {selectedDate && selectedDayRentals && selectedDayRentals.length > 0 && (
               <div className="card">
                 <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -718,6 +787,15 @@ const CarRental = () => {
         onClose={() => { setIsRentalModalOpen(false); setEditingRental(null) }}
         onSave={editingRental ? handleUpdateRental : handleAddRental}
         rental={editingRental}
+      />
+
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={handleClosePaymentModal}
+        onSave={handleRecordPayment}
+        customerName={selectedRental?.driver_name || 'Unknown'}
+        remainingBalance={selectedRental?.remaining_balance || 0}
+        suggestedAmount={selectedRental?.remaining_balance || 0}
       />
     </div>
   )
