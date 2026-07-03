@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { useTheme } from '../context/ThemeContext'
-import { Sun, Moon, Eye, EyeOff, LogIn, User } from 'lucide-react'
+import { Sun, Moon, Eye, EyeOff, LogIn, User, AlertCircle } from 'lucide-react'
 
 const Login = () => {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   
   const navigate = useNavigate()
   const { login } = useAuth()
@@ -18,9 +19,10 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
     
     if (!username || !password) {
-      showNotification('Please enter username and password', 'error')
+      setError('Please enter both username and password')
       return
     }
 
@@ -31,7 +33,8 @@ const Login = () => {
       if (result.success) {
         navigate('/dashboard')
       } else {
-        showNotification(result.message || 'Login failed. Please try again.', 'error')
+        setError(result.message || 'Login failed. Please try again.')
+        showNotification(result.message || 'Login failed', 'error')
       }
       setLoading(false)
     }, 800)
@@ -68,6 +71,14 @@ const Login = () => {
 
         {/* Login form */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 border border-gray-200 dark:border-gray-700">
+          {/* Error message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-600 dark:text-red-400">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="username" className="label">
@@ -79,8 +90,11 @@ const Login = () => {
                   id="username"
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="input-field pl-10"
+                  onChange={(e) => {
+                    setUsername(e.target.value)
+                    setError('') // Clear error when typing
+                  }}
+                  className={`input-field pl-10 ${error ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Enter your username"
                   required
                   autoComplete="username"
@@ -97,8 +111,11 @@ const Login = () => {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-field pr-10"
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    setError('') // Clear error when typing
+                  }}
+                  className={`input-field pr-10 ${error ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Enter your password"
                   required
                   autoComplete="current-password"
