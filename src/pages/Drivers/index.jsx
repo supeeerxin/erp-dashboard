@@ -125,3 +125,21 @@ const Drivers = () => {
                   <button onClick={() => handleDeleteDriver(driver.id)} className="p-1.5 rounded-lg hover:bg-red-100">
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <DriverModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={editingDriver ? handleUpdateDriver : handleAddDriver}
+        driver={editingDriver}
+      />
+    </div>
+  )
+}
+
+export default Drivers
