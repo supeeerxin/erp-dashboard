@@ -43,24 +43,41 @@ export const RentalProvider = ({ children }) => {
     try {
       console.log('Adding rental with data:', data)
 
+      // Check if required fields exist
+      if (!data.vehicle_id || !data.driver_id || !data.start_date || !data.end_date) {
+        showNotification('Please fill in all required fields', 'error')
+        return null
+      }
+
       const startDate = new Date(data.start_date)
       const endDate = new Date(data.end_date)
-      const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
-      const totalAmount = totalDays * (data.daily_boundary || 0)
-      const downPayment = data.down_payment || 0
+      
+      // Validate dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        showNotification('Invalid date format', 'error')
+        return null
+      }
+
+      // Calculate days
+      const diffTime = Math.abs(endDate - startDate)
+      const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 // +1 to include both start and end
+      
+      const dailyBoundary = parseFloat(data.daily_boundary) || 0
+      const totalAmount = totalDays * dailyBoundary
+      const downPayment = parseFloat(data.down_payment) || 0
       const remainingBalance = totalAmount - downPayment
 
       const newRental = {
         id: Date.now(),
         transaction_number: `RENT-${Date.now().toString().slice(-8)}`,
-        vehicle_id: data.vehicle_id,
-        driver_id: data.driver_id,
+        vehicle_id: parseInt(data.vehicle_id),
+        driver_id: parseInt(data.driver_id),
         driver_name: data.driver_name || '',
         vehicle_plate: data.vehicle_plate || '',
         start_date: data.start_date,
         end_date: data.end_date,
         total_days: totalDays,
-        daily_boundary: data.daily_boundary || 0,
+        daily_boundary: dailyBoundary,
         total_amount: totalAmount,
         down_payment: downPayment,
         remaining_balance: remainingBalance,
@@ -95,7 +112,7 @@ export const RentalProvider = ({ children }) => {
       return inserted[0]
     } catch (error) {
       console.error('Error adding rental:', error)
-      showNotification('Failed to create rental', 'error')
+      showNotification('Failed to create rental: ' + error.message, 'error')
       return null
     }
   }
