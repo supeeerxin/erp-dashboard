@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
   const { showNotification } = useNotification()
   const { addLog } = useAudit()
 
-  // Hardcoded admin users - username based
+  // Hardcoded admin users
   const adminUsers = [
     {
       id: 1,
@@ -44,24 +44,34 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const login = (username, password) => {
+    // Check if username exists
+    const userExists = adminUsers.find(u => u.username === username)
+    
+    if (!userExists) {
+      addLog('Login Failed', 'Auth', `Username not found: ${username}`)
+      return { success: false, message: 'Username not found. Please check your username.' }
+    }
+
+    // Check if password is correct
     const foundUser = adminUsers.find(u => u.username === username && u.password === password)
     
-    if (foundUser) {
-      const userData = {
-        id: foundUser.id,
-        name: foundUser.name,
-        username: foundUser.username,
-        role: foundUser.role
-      }
-      localStorage.setItem('user', JSON.stringify(userData))
-      setUser(userData)
-      addLog('Login', 'Auth', `${foundUser.name} logged in`)
-      showNotification(`Welcome back, ${foundUser.name}!`, 'success')
-      return { success: true, user: userData }
+    if (!foundUser) {
+      addLog('Login Failed', 'Auth', `Incorrect password for: ${username}`)
+      return { success: false, message: 'Incorrect password. Please try again.' }
     }
-    
-    addLog('Login Failed', 'Auth', `Failed login attempt for ${username}`)
-    return { success: false, message: 'Invalid username or password' }
+
+    // Login successful
+    const userData = {
+      id: foundUser.id,
+      name: foundUser.name,
+      username: foundUser.username,
+      role: foundUser.role
+    }
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+    addLog('Login', 'Auth', `${foundUser.name} logged in`)
+    showNotification(`Welcome back, ${foundUser.name}!`, 'success')
+    return { success: true, user: userData }
   }
 
   const logout = () => {
