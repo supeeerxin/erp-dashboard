@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
 import { supabase } from '../services/supabase'
 
 const DriverContext = createContext()
@@ -16,6 +17,7 @@ export const DriverProvider = ({ children }) => {
   const [drivers, setDrivers] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
   const loadDrivers = async () => {
     try {
@@ -62,6 +64,7 @@ export const DriverProvider = ({ children }) => {
 
       setDrivers(prev => [inserted[0], ...prev])
       showNotification('Driver added successfully!', 'success')
+      addLog('Created', 'Driver', `Added driver: ${data.name}`)
       return inserted[0]
     } catch (error) {
       console.error('Error adding driver:', error)
@@ -72,6 +75,7 @@ export const DriverProvider = ({ children }) => {
 
   const updateDriver = async (id, data) => {
     try {
+      const oldDriver = drivers.find(d => d.id === id)
       const { data: updated, error } = await supabase
         .from('drivers')
         .update({
@@ -88,6 +92,7 @@ export const DriverProvider = ({ children }) => {
 
       setDrivers(prev => prev.map(d => d.id === id ? updated[0] : d))
       showNotification('Driver updated successfully!', 'success')
+      addLog('Updated', 'Driver', `Updated driver: ${oldDriver?.name || 'Unknown'} → ${data.name}`)
     } catch (error) {
       console.error('Error updating driver:', error)
       showNotification('Failed to update driver', 'error')
@@ -96,6 +101,7 @@ export const DriverProvider = ({ children }) => {
 
   const deleteDriver = async (id) => {
     try {
+      const driver = drivers.find(d => d.id === id)
       const { error } = await supabase
         .from('drivers')
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
@@ -105,6 +111,7 @@ export const DriverProvider = ({ children }) => {
 
       setDrivers(prev => prev.filter(d => d.id !== id))
       showNotification('Driver moved to trash!', 'warning')
+      addLog('Deleted', 'Driver', `Soft deleted driver: ${driver?.name || 'Unknown'}`)
     } catch (error) {
       console.error('Error deleting driver:', error)
       showNotification('Failed to delete driver', 'error')
