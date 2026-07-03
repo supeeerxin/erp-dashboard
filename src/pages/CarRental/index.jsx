@@ -134,24 +134,20 @@ const CarRental = () => {
       case 'vehicles':
         return (
           <div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <div className="card p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{vehicles.length}</p>
-              </div>
-              <div className="card p-4 bg-green-50 dark:bg-green-900/20">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
-                <p className="text-2xl font-bold text-green-600">{vehicles.filter(v => v.status === 'available').length}</p>
-              </div>
-              <div className="card p-4 bg-yellow-50 dark:bg-yellow-900/20">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Rented</p>
-                <p className="text-2xl font-bold text-yellow-600">{vehicles.filter(v => v.status === 'rented').length}</p>
-              </div>
-              <div className="card p-4 bg-red-50 dark:bg-red-900/20">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Maintenance</p>
-                <p className="text-2xl font-bold text-red-600">{vehicles.filter(v => v.status === 'maintenance').length}</p>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+  <div className="card p-4">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Total Vehicles</p>
+    <p className="text-2xl font-bold text-gray-900 dark:text-white">{vehicles.length}</p>
+  </div>
+  <div className="card p-4 bg-green-50 dark:bg-green-900/20">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
+    <p className="text-2xl font-bold text-green-600">{vehicles.filter(v => v.status === 'available').length}</p>
+  </div>
+  <div className="card p-4 bg-red-50 dark:bg-red-900/20">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Maintenance</p>
+    <p className="text-2xl font-bold text-red-600">{vehicles.filter(v => v.status === 'maintenance').length}</p>
+  </div>
+</div>
 
             {filteredVehicles.length === 0 ? (
               <div className="card">
