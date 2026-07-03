@@ -29,6 +29,8 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
     
     const start = new Date(startDate)
     const end = new Date(endDate)
+    start.setHours(0, 0, 0, 0)
+    end.setHours(23, 59, 59, 999)
     
     // Check if vehicle has any conflicting rental
     const hasConflict = rentals.some(rental => {
@@ -37,7 +39,10 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
       if (rental.status === 'cancelled') return false
       
       const rentalStart = new Date(rental.start_date)
-      const rentalEnd = rental.end_date ? new Date(rental.end_date) : rentalStart
+      rentalStart.setHours(0, 0, 0, 0)
+      
+      const rentalEnd = rental.end_date ? new Date(rental.end_date) : new Date(rental.start_date)
+      rentalEnd.setHours(23, 59, 59, 999)
       
       // Check if date ranges overlap
       return start <= rentalEnd && end >= rentalStart
@@ -52,7 +57,7 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
     if (!start_date || !end_date) return vehicles
     
     return vehicles.filter(vehicle => {
-      // Only show available or maintenance vehicles
+      // Only show available vehicles (not maintenance)
       if (vehicle.status === 'maintenance') return false
       return isVehicleAvailable(vehicle.id, start_date, end_date)
     })
@@ -218,11 +223,11 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
             >
               <option value="">Select Vehicle</option>
               {displayVehicles.map(vehicle => {
-                const isAvailable = isVehicleAvailable(vehicle.id, formData.start_date, formData.end_date)
+                const isAvail = isVehicleAvailable(vehicle.id, formData.start_date, formData.end_date)
                 return (
                   <option key={vehicle.id} value={vehicle.id}>
                     {vehicle.brand} {vehicle.model} - {vehicle.plate_number}
-                    {!isAvailable ? ' (Booked)' : ''}
+                    {!isAvail ? ' (Booked)' : ''}
                   </option>
                 )
               })}
