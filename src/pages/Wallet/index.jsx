@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react'
-import { Wallet as WalletIcon, TrendingUp, TrendingDown, CreditCard, DollarSign, Calendar, ArrowUp, ArrowDown } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Wallet as WalletIcon, TrendingUp, TrendingDown, CreditCard, DollarSign, Calendar, ArrowUp, ArrowDown, Receipt } from 'lucide-react'
 import { useIncome } from '../../context/IncomeContext'
 import { useExpenses } from '../../context/ExpenseContext'
 import { usePayables } from '../../context/PayableContext'
+import { useRiceCredit } from '../../context/RiceCreditContext'
+import { useBreadOrders } from '../../context/BreadOrderContext'
+import { useCashLoans } from '../../context/CashLoanContext'
+import { useRentals } from '../../context/RentalContext'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,34 +35,78 @@ const Wallet = () => {
   const { getTotals: getIncomeTotals, incomes } = useIncome()
   const { getTotals: getExpenseTotals, expenses } = useExpenses()
   const { getTotals: getPayableTotals, payables } = usePayables()
+  const { transactions: riceCredits } = useRiceCredit()
+  const { orders: breadOrders } = useBreadOrders()
+  const { loans: cashLoans } = useCashLoans()
+  const { rentals } = useRentals()
 
-  const [timeframe, setTimeframe] = useState('all') // all, month, week
+  // Calculate all income sources
+  const totalIncome = useMemo(() => {
+    // From Income module
+    const incomeTotal = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
+    
+    // From Rice Credit payments
+    const riceCreditPaid = riceCredits?.reduce((sum, t) => {
+      const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
+      return sum + paid
+    }, 0) || 0
+    
+    // From Bread Order payments
+    const breadOrderPaid = breadOrders?.reduce((sum, o) => {
+      const paid = o.payments?.reduce((s, p) => s + p.amount, 0) || 0
+      return sum + paid
+    }, 0) || 0
+    
+    // From Cash Loan payments
+    const cashLoanPaid = cashLoans?.reduce((sum, l) => {
+      const paid = l.payments?.reduce((s, p) => s + p.amount, 0) || 0
+      return sum + paid
+    }, 0) || 0
+    
+    // From Rental payments (down payments + payments)
+    const rentalPaid = rentals?.reduce((sum, r) => {
+      const paid = (r.down_payment || 0) + (r.remaining_balance || 0)
+      return sum + paid
+    }, 0) || 0
+    
+    return incomeTotal + riceCreditPaid + breadOrderPaid + cashLoanPaid + rentalPaid
+  }, [incomes, riceCredits, breadOrders, cashLoans, rentals])
 
-  const incomeTotals = getIncomeTotals()
-  const expenseTotals = getExpenseTotals()
+  // Calculate all expenses
+  const totalExpenses = useMemo(() => {
+    // From Expense module
+    const expenseTotal = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+    
+    // From Rice Credit costs (puhunan)
+    const riceCreditCost = riceCredits?.reduce((sum, t) => sum + (t.cost || 0), 0) || 0
+    
+    // From Bread Order costs
+    const breadOrderCost = breadOrders?.reduce((sum, o) => sum + (o.totalCost || 0), 0) || 0
+    
+    return expenseTotal + riceCreditCost + breadOrderCost
+  }, [expenses, riceCredits, breadOrders])
+
+  // Calculate payables
   const payableTotals = getPayableTotals()
-
-  // Calculate cash flow
-  const totalIncome = incomeTotals.totalAmount || 0
-  const totalExpenses = expenseTotals.totalAmount || 0
-  const netProfit = totalIncome - totalExpenses
   const unpaidPayables = payableTotals.totalUnpaid || 0
+
+  // Calculate net profit
+  const netProfit = totalIncome - totalExpenses
   const cashOnHand = netProfit - unpaidPayables
 
-  // Get monthly data
+  // Get monthly data for chart
   const getMonthlyData = () => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     const incomeByMonth = {}
     const expenseByMonth = {}
 
-    // Initialize months
     months.forEach(m => {
       incomeByMonth[m] = 0
       expenseByMonth[m] = 0
     })
 
     // Sum income by month
-    incomes.forEach(inc => {
+    incomes?.forEach(inc => {
       if (!inc.isDeleted) {
         const date = new Date(inc.date || inc.createdAt)
         const month = months[date.getMonth()]
@@ -67,7 +115,7 @@ const Wallet = () => {
     })
 
     // Sum expenses by month
-    expenses.forEach(exp => {
+    expenses?.forEach(exp => {
       if (!exp.isDeleted) {
         const date = new Date(exp.date || exp.createdAt)
         const month = months[date.getMonth()]
@@ -121,7 +169,10 @@ const Wallet = () => {
           color: darkMode ? '#374151' : '#e5e7eb'
         },
         ticks: {
-          color: darkMode ? '#9ca3af' : '#6b7280'
+          color: darkMode ? '#9ca3af' : '#6b7280',
+          callback: function(value) {
+            return '₱' + value.toLocaleString()
+          }
         }
       },
       x: {
@@ -135,27 +186,16 @@ const Wallet = () => {
     }
   }
 
-  const getCategoryData = () => {
-    const expenseCategories = expenseTotals.byCategory || {}
-    const sorted = Object.entries(expenseCategories)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-
-    const colors = [
-      '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'
+  const expenseCategoryData = {
+    labels: Object.keys(payableTotals.byCategory || {}),
+    datasets: [
+      {
+        data: Object.values(payableTotals.byCategory || {}),
+        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'],
+        borderColor: darkMode ? '#1f2937' : '#ffffff',
+        borderWidth: 2
+      }
     ]
-
-    return {
-      labels: sorted.map(([cat]) => cat),
-      datasets: [
-        {
-          data: sorted.map(([, amount]) => amount),
-          backgroundColor: colors.slice(0, sorted.length),
-          borderColor: darkMode ? '#1f2937' : '#ffffff',
-          borderWidth: 2
-        }
-      ]
-    }
   }
 
   const doughnutOptions = {
@@ -178,22 +218,13 @@ const Wallet = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Wallet</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <WalletIcon className="w-6 h-6 text-primary-500" />
+            Wallet
+          </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Overall cash flow and financial overview
           </p>
-        </div>
-        <div className="flex gap-2">
-          <select
-            value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value)}
-            className="input-field w-40"
-          >
-            <option value="all">All Time</option>
-            <option value="year">This Year</option>
-            <option value="month">This Month</option>
-            <option value="week">This Week</option>
-          </select>
         </div>
       </div>
 
@@ -247,25 +278,26 @@ const Wallet = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="card p-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">Income Entries</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">{incomeTotals.count || 0}</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">{incomes?.length || 0}</p>
         </div>
         <div className="card p-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">Expense Entries</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">{expenseTotals.count || 0}</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">{expenses?.length || 0}</p>
         </div>
         <div className="card p-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">Unpaid Payables</p>
-          <p className="text-lg font-bold text-red-500">{payableTotals.unpaidCount || 0}</p>
+          <p className="text-lg font-bold text-red-500">{payables?.filter(p => p.status !== 'paid').length || 0}</p>
         </div>
         <div className="card p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Overdue</p>
-          <p className="text-lg font-bold text-red-500">{payableTotals.overdueCount || 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Total Transactions</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">
+            {(incomes?.length || 0) + (expenses?.length || 0) + (riceCredits?.length || 0) + (breadOrders?.length || 0)}
+          </p>
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Income vs Expenses Chart */}
         <div className="lg:col-span-2 card">
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
             Monthly Income vs Expenses
@@ -275,31 +307,70 @@ const Wallet = () => {
           </div>
         </div>
 
-        {/* Expense Categories */}
         <div className="card">
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-            Expense Categories
+            Payables by Category
           </h4>
           <div className="h-64">
-            {Object.keys(expenseTotals.byCategory || {}).length === 0 ? (
+            {Object.keys(payableTotals.byCategory || {}).length === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
-                <p className="text-sm">No expense data yet</p>
+                <p className="text-sm">No payables data</p>
               </div>
             ) : (
-              <Doughnut data={getCategoryData()} options={doughnutOptions} />
+              <Doughnut data={expenseCategoryData} options={doughnutOptions} />
             )}
           </div>
         </div>
       </div>
 
-      {/* Payables Summary */}
+      {/* Income Breakdown */}
       <div className="card">
         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-          Unpaid Payables Summary
+          Income Breakdown
         </h4>
-        {payables.filter(p => p.status !== 'paid').length === 0 ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">No unpaid payables</p>
-        ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Income Module</p>
+            <p className="text-lg font-bold text-green-600">
+              ₱{incomes?.reduce((sum, i) => sum + (i.amount || 0), 0)?.toLocaleString() || 0}
+            </p>
+          </div>
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Rice Credit</p>
+            <p className="text-lg font-bold text-blue-600">
+              ₱{riceCredits?.reduce((sum, t) => {
+                const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
+                return sum + paid
+              }, 0)?.toLocaleString() || 0}
+            </p>
+          </div>
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Bread Orders</p>
+            <p className="text-lg font-bold text-yellow-600">
+              ₱{breadOrders?.reduce((sum, o) => {
+                const paid = o.payments?.reduce((s, p) => s + p.amount, 0) || 0
+                return sum + paid
+              }, 0)?.toLocaleString() || 0}
+            </p>
+          </div>
+          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Cash Loans</p>
+            <p className="text-lg font-bold text-purple-600">
+              ₱{cashLoans?.reduce((sum, l) => {
+                const paid = l.payments?.reduce((s, p) => s + p.amount, 0) || 0
+                return sum + paid
+              }, 0)?.toLocaleString() || 0}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Unpaid Payables List */}
+      {payables?.filter(p => p.status !== 'paid').length > 0 && (
+        <div className="card">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+            Unpaid Payables ({payables.filter(p => p.status !== 'paid').length})
+          </h4>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -330,8 +401,8 @@ const Wallet = () => {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
