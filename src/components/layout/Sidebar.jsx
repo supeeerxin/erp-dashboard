@@ -16,8 +16,7 @@ import {
   CreditCard,
   FileText,
   Calendar,
-  Car,
-  Calendar as CalendarIcon
+  Car
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -33,9 +32,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     },
     {
       items: [
-        { path: '/vehicles', icon: Car, label: 'Vehicles' },  // <-- ADDED
-        // Add to menuGroups after Vehicles
-{ path: '/car-schedule', icon: CalendarIcon, label: 'Car Schedule' },
+        { path: '/car-rental', icon: Car, label: 'Car Rental' },
         { path: '/rice-credit', icon: Package, label: 'Rice Credit' },
         { path: '/cash-loans', icon: DollarSign, label: 'Cash Loans' },
         { path: '/bread-orders', icon: ShoppingBag, label: 'Bread Orders' },
