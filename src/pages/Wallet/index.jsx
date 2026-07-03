@@ -7,16 +7,15 @@ import {
   CreditCard, 
   DollarSign, 
   Calendar, 
-  ArrowUp, 
-  ArrowDown, 
   Receipt,
   Package,
   ShoppingBag,
   Car,
   Users,
-  BarChart3,
   ChevronRight,
-  Eye
+  Clock,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react'
 import { useIncome } from '../../context/IncomeContext'
 import { useExpenses } from '../../context/ExpenseContext'
@@ -25,7 +24,6 @@ import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useBreadOrders } from '../../context/BreadOrderContext'
 import { useCashLoans } from '../../context/CashLoanContext'
 import { useRentals } from '../../context/RentalContext'
-import { useCustomers } from '../../context/CustomerContext'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -34,13 +32,11 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement,
-  PointElement,
-  LineElement
+  ArcElement
 } from 'chart.js'
-import { Bar, Doughnut, Line } from 'react-chartjs-2'
+import { Bar, Doughnut } from 'react-chartjs-2'
 import { useTheme } from '../../context/ThemeContext'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
 
 ChartJS.register(
   CategoryScale,
@@ -49,9 +45,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement,
-  PointElement,
-  LineElement
+  ArcElement
 )
 
 const Wallet = () => {
@@ -59,17 +53,15 @@ const Wallet = () => {
   const { darkMode } = useTheme()
   
   // Get data from all contexts
-  const { getTotals: getIncomeTotals, incomes } = useIncome()
-  const { getTotals: getExpenseTotals, expenses } = useExpenses()
-  const { getTotals: getPayableTotals, payables } = usePayables()
+  const { incomes } = useIncome()
+  const { expenses } = useExpenses()
+  const { payables } = usePayables()
   const { transactions: riceCredits } = useRiceCredit()
   const { orders: breadOrders } = useBreadOrders()
   const { loans: cashLoans } = useCashLoans()
   const { rentals } = useRentals()
-  const { customers } = useCustomers()
 
-  const [selectedBusiness, setSelectedBusiness] = useState('all')
-  const [dateRange, setDateRange] = useState('all') // 'all', 'week', 'month'
+  const [dateRange, setDateRange] = useState('all')
 
   // Get current date for filtering
   const now = new Date()
@@ -80,33 +72,47 @@ const Wallet = () => {
 
   // ============ INCOME CALCULATIONS ============
   
-  // Calculate total income from all sources
+  // Total Income from all sources (only completed/payments)
   const totalIncome = useMemo(() => {
-    // From Income module
+    // From Income module (always recorded)
     const incomeTotal = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
     
-    // From Rice Credit payments
+    // From Rice Credit payments (only completed transactions or payments made)
     const riceCreditPaid = riceCredits?.reduce((sum, t) => {
-      const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
-      return sum + paid
+      // Only count if status is completed or has payments
+      if (t.status === 'completed' || (t.payments && t.payments.length > 0)) {
+        const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
+        return sum + paid
+      }
+      return sum
     }, 0) || 0
     
     // From Bread Order payments
     const breadOrderPaid = breadOrders?.reduce((sum, o) => {
-      const paid = o.payments?.reduce((s, p) => s + p.amount, 0) || 0
-      return sum + paid
+      if (o.status === 'completed' || (o.payments && o.payments.length > 0)) {
+        const paid = o.payments?.reduce((s, p) => s + p.amount, 0) || 0
+        return sum + paid
+      }
+      return sum
     }, 0) || 0
     
     // From Cash Loan payments
     const cashLoanPaid = cashLoans?.reduce((sum, l) => {
-      const paid = l.payments?.reduce((s, p) => s + p.amount, 0) || 0
-      return sum + paid
+      if (l.status === 'completed' || (l.payments && l.payments.length > 0)) {
+        const paid = l.payments?.reduce((s, p) => s + p.amount, 0) || 0
+        return sum + paid
+      }
+      return sum
     }, 0) || 0
     
-    // From Rental payments
+    // From Rental payments (only completed or with payments)
     const rentalPaid = rentals?.reduce((sum, r) => {
-      const paid = (r.down_payment || 0) + (r.remaining_balance || 0)
-      return sum + paid
+      if (r.status === 'completed' || (r.down_payment > 0) || (r.payments && r.payments.length > 0)) {
+        const downPayment = r.down_payment || 0
+        const payments = r.payments?.reduce((s, p) => s + p.amount, 0) || 0
+        return sum + downPayment + payments
+      }
+      return sum
     }, 0) || 0
     
     return incomeTotal + riceCreditPaid + breadOrderPaid + cashLoanPaid + rentalPaid
@@ -118,68 +124,97 @@ const Wallet = () => {
     // From Expense module
     const expenseTotal = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
     
-    // From Rice Credit costs (puhunan)
+    // From Rice Credit costs (puhunan - recorded immediately)
     const riceCreditCost = riceCredits?.reduce((sum, t) => sum + (t.cost || 0), 0) || 0
     
     // From Bread Order costs
     const breadOrderCost = breadOrders?.reduce((sum, o) => sum + (o.totalCost || 0), 0) || 0
     
-    return expenseTotal + riceCreditCost + breadOrderCost
-  }, [expenses, riceCredits, breadOrders])
+    // From Payables paid (recorded when marked as paid)
+    const payablesPaid = payables?.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+    
+    return expenseTotal + riceCreditCost + breadOrderCost + payablesPaid
+  }, [expenses, riceCredits, breadOrders, payables])
 
   // ============ RECEIVABLES (Dapat kolektahin) ============
   
   const receivables = useMemo(() => {
     const riceCreditReceivable = riceCredits?.reduce((sum, t) => {
-      if (t.status !== 'completed') {
+      if (t.status !== 'completed' && t.status !== 'cancelled') {
         return sum + (t.remainingBalance || 0)
       }
       return sum
     }, 0) || 0
     
     const breadOrderReceivable = breadOrders?.reduce((sum, o) => {
-      if (o.status !== 'completed') {
+      if (o.status !== 'completed' && o.status !== 'cancelled') {
         return sum + (o.remainingBalance || 0)
       }
       return sum
     }, 0) || 0
     
     const cashLoanReceivable = cashLoans?.reduce((sum, l) => {
-      if (l.status !== 'completed') {
+      if (l.status !== 'completed' && l.status !== 'cancelled') {
         return sum + (l.remainingBalance || 0)
       }
       return sum
     }, 0) || 0
     
-    return riceCreditReceivable + breadOrderReceivable + cashLoanReceivable
-  }, [riceCredits, breadOrders, cashLoans])
+    const rentalReceivable = rentals?.reduce((sum, r) => {
+      if (r.status === 'active') {
+        return sum + (r.remaining_balance || 0)
+      }
+      return sum
+    }, 0) || 0
+    
+    return riceCreditReceivable + breadOrderReceivable + cashLoanReceivable + rentalReceivable
+  }, [riceCredits, breadOrders, cashLoans, rentals])
 
   // ============ PAYABLES (Dapat bayaran) ============
   
-  const payableTotals = getPayableTotals()
-  const unpaidPayables = payableTotals.totalUnpaid || 0
+  const unpaidPayables = useMemo(() => {
+    return payables?.filter(p => p.status !== 'paid').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+  }, [payables])
+
+  // ============ NET PROFIT & CASH ON HAND ============
+  
+  const netProfit = totalIncome - totalExpenses
+  const cashOnHand = netProfit - unpaidPayables
 
   // ============ BUSINESS INCOME BREAKDOWN ============
   
   const businessIncome = useMemo(() => {
     const riceCreditIncome = riceCredits?.reduce((sum, t) => {
-      const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
-      return sum + paid
+      if (t.status === 'completed' || (t.payments && t.payments.length > 0)) {
+        const paid = t.payments?.reduce((s, p) => s + p.amount, 0) || 0
+        return sum + paid
+      }
+      return sum
     }, 0) || 0
     
     const breadOrderIncome = breadOrders?.reduce((sum, o) => {
-      const paid = o.payments?.reduce((s, p) => s + p.amount, 0) || 0
-      return sum + paid
+      if (o.status === 'completed' || (o.payments && o.payments.length > 0)) {
+        const paid = o.payments?.reduce((s, p) => s + p.amount, 0) || 0
+        return sum + paid
+      }
+      return sum
     }, 0) || 0
     
     const cashLoanIncome = cashLoans?.reduce((sum, l) => {
-      const paid = l.payments?.reduce((s, p) => s + p.amount, 0) || 0
-      return sum + paid
+      if (l.status === 'completed' || (l.payments && l.payments.length > 0)) {
+        const paid = l.payments?.reduce((s, p) => s + p.amount, 0) || 0
+        return sum + paid
+      }
+      return sum
     }, 0) || 0
     
     const rentalIncome = rentals?.reduce((sum, r) => {
-      const paid = (r.down_payment || 0) + (r.remaining_balance || 0)
-      return sum + paid
+      if (r.status === 'completed' || (r.down_payment > 0) || (r.payments && r.payments.length > 0)) {
+        const downPayment = r.down_payment || 0
+        const payments = r.payments?.reduce((s, p) => s + p.amount, 0) || 0
+        return sum + downPayment + payments
+      }
+      return sum
     }, 0) || 0
     
     const incomeModule = incomes?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
@@ -199,13 +234,14 @@ const Wallet = () => {
     const riceCreditCost = riceCredits?.reduce((sum, t) => sum + (t.cost || 0), 0) || 0
     const breadOrderCost = breadOrders?.reduce((sum, o) => sum + (o.totalCost || 0), 0) || 0
     const expenseModule = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+    const payablesPaid = payables?.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
     
     return {
       riceCredit: riceCreditCost,
       breadOrder: breadOrderCost,
-      expenses: expenseModule
+      expenses: expenseModule + payablesPaid
     }
-  }, [riceCredits, breadOrders, expenses])
+  }, [riceCredits, breadOrders, expenses, payables])
 
   // ============ BUSINESS PROFIT ============
   
@@ -261,88 +297,100 @@ const Wallet = () => {
     return fromIncomes + fromRiceCredit
   }, [incomes, riceCredits, monthStart, monthEnd, dateRange])
 
-  // ============ NET PROFIT & CASH ON HAND ============
-  
-  const netProfit = totalIncome - totalExpenses
-  const cashOnHand = netProfit - unpaidPayables
-
   // ============ NAVIGATION FUNCTIONS ============
   
   const handleCardClick = (path) => {
     navigate(path)
   }
 
+  const formatCurrency = (amount) => {
+    return '₱' + (amount || 0).toLocaleString()
+  }
+
+  // Business cards configuration
   const businessCards = [
     {
       id: 'riceCredit',
       title: 'Rice Credit',
       icon: Package,
-      color: 'bg-blue-500',
+      color: 'text-blue-500',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
       borderColor: 'border-blue-200 dark:border-blue-800',
       income: businessIncome.riceCredit,
       puhunan: businessPuhunan.riceCredit,
       profit: businessProfit.riceCredit,
+      status: riceCredits?.filter(t => t.status === 'completed').length || 0,
+      total: riceCredits?.length || 0,
       path: '/rice-credit'
     },
     {
       id: 'breadOrder',
       title: 'Bread Orders',
       icon: ShoppingBag,
-      color: 'bg-yellow-500',
+      color: 'text-yellow-500',
       bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
       borderColor: 'border-yellow-200 dark:border-yellow-800',
       income: businessIncome.breadOrder,
       puhunan: businessPuhunan.breadOrder,
       profit: businessProfit.breadOrder,
+      status: breadOrders?.filter(o => o.status === 'completed').length || 0,
+      total: breadOrders?.length || 0,
       path: '/bread-orders'
     },
     {
       id: 'cashLoan',
       title: 'Cash Loans',
       icon: DollarSign,
-      color: 'bg-green-500',
+      color: 'text-green-500',
       bgColor: 'bg-green-50 dark:bg-green-900/20',
       borderColor: 'border-green-200 dark:border-green-800',
       income: businessIncome.cashLoan,
       puhunan: 0,
       profit: businessProfit.cashLoan,
+      status: cashLoans?.filter(l => l.status === 'completed').length || 0,
+      total: cashLoans?.length || 0,
       path: '/cash-loans'
     },
     {
       id: 'rental',
       title: 'Car Rental',
       icon: Car,
-      color: 'bg-purple-500',
+      color: 'text-purple-500',
       bgColor: 'bg-purple-50 dark:bg-purple-900/20',
       borderColor: 'border-purple-200 dark:border-purple-800',
       income: businessIncome.rental,
       puhunan: 0,
       profit: businessProfit.rental,
+      status: rentals?.filter(r => r.status === 'completed').length || 0,
+      total: rentals?.length || 0,
       path: '/car-rental'
     },
     {
       id: 'incomeModule',
       title: 'Other Income',
       icon: TrendingUp,
-      color: 'bg-indigo-500',
+      color: 'text-indigo-500',
       bgColor: 'bg-indigo-50 dark:bg-indigo-900/20',
       borderColor: 'border-indigo-200 dark:border-indigo-800',
       income: businessIncome.incomeModule,
       puhunan: 0,
       profit: businessProfit.incomeModule,
+      status: incomes?.length || 0,
+      total: incomes?.length || 0,
       path: '/income'
     },
     {
       id: 'expenses',
       title: 'Expenses',
       icon: TrendingDown,
-      color: 'bg-red-500',
+      color: 'text-red-500',
       bgColor: 'bg-red-50 dark:bg-red-900/20',
       borderColor: 'border-red-200 dark:border-red-800',
       income: 0,
       puhunan: businessPuhunan.expenses,
       profit: -businessPuhunan.expenses,
+      status: expenses?.length || 0,
+      total: expenses?.length || 0,
       path: '/expenses'
     }
   ]
@@ -375,6 +423,17 @@ const Wallet = () => {
       }
     })
 
+    // Add Rice Credit payments to income by month
+    riceCredits?.forEach(t => {
+      if (t.payments && t.payments.length > 0) {
+        t.payments.forEach(p => {
+          const date = new Date(p.date || t.createdAt)
+          const month = months[date.getMonth()]
+          incomeByMonth[month] = (incomeByMonth[month] || 0) + (p.amount || 0)
+        })
+      }
+    })
+
     return { incomeByMonth, expenseByMonth }
   }
 
@@ -389,16 +448,14 @@ const Wallet = () => {
         data: months.map(m => monthlyData.incomeByMonth[m] || 0),
         backgroundColor: 'rgba(34, 197, 94, 0.8)',
         borderColor: 'rgb(34, 197, 94)',
-        borderWidth: 2,
-        tension: 0.4
+        borderWidth: 2
       },
       {
         label: 'Expenses',
         data: months.map(m => monthlyData.expenseByMonth[m] || 0),
         backgroundColor: 'rgba(239, 68, 68, 0.8)',
         borderColor: 'rgb(239, 68, 68)',
-        borderWidth: 2,
-        tension: 0.4
+        borderWidth: 2
       }
     ]
   }
@@ -413,6 +470,13 @@ const Wallet = () => {
           color: darkMode ? '#e5e7eb' : '#374151',
           usePointStyle: true,
           padding: 20
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return '₱' + context.parsed.y.toLocaleString()
+          }
         }
       }
     },
@@ -441,15 +505,16 @@ const Wallet = () => {
   }
 
   const receivableData = {
-    labels: ['Rice Credit', 'Bread Orders', 'Cash Loans'],
+    labels: ['Rice Credit', 'Bread Orders', 'Cash Loans', 'Car Rental'],
     datasets: [
       {
         data: [
-          riceCredits?.reduce((sum, t) => t.status !== 'completed' ? sum + (t.remainingBalance || 0) : sum, 0) || 0,
-          breadOrders?.reduce((sum, o) => o.status !== 'completed' ? sum + (o.remainingBalance || 0) : sum, 0) || 0,
-          cashLoans?.reduce((sum, l) => l.status !== 'completed' ? sum + (l.remainingBalance || 0) : sum, 0) || 0
+          riceCredits?.reduce((sum, t) => t.status !== 'completed' && t.status !== 'cancelled' ? sum + (t.remainingBalance || 0) : sum, 0) || 0,
+          breadOrders?.reduce((sum, o) => o.status !== 'completed' && o.status !== 'cancelled' ? sum + (o.remainingBalance || 0) : sum, 0) || 0,
+          cashLoans?.reduce((sum, l) => l.status !== 'completed' && l.status !== 'cancelled' ? sum + (l.remainingBalance || 0) : sum, 0) || 0,
+          rentals?.reduce((sum, r) => r.status === 'active' ? sum + (r.remaining_balance || 0) : sum, 0) || 0
         ],
-        backgroundColor: ['#3b82f6', '#eab308', '#22c55e'],
+        backgroundColor: ['#3b82f6', '#eab308', '#22c55e', '#8b5cf6'],
         borderColor: darkMode ? '#1f2937' : '#ffffff',
         borderWidth: 2
       }
@@ -469,11 +534,6 @@ const Wallet = () => {
         }
       }
     }
-  }
-
-  // Format currency
-  const formatCurrency = (amount) => {
-    return '₱' + (amount || 0).toLocaleString()
   }
 
   return (
@@ -502,7 +562,7 @@ const Wallet = () => {
         </div>
       </div>
 
-      {/* Main Summary Cards - Clickable */}
+      {/* Main Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div 
           onClick={() => handleCardClick('/income')}
@@ -518,7 +578,7 @@ const Wallet = () => {
                 {formatCurrency(totalIncome)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {dateRange === 'week' ? 'This week' : dateRange === 'month' ? 'This month' : 'All time'}
+                Recorded payments only
               </p>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -539,7 +599,7 @@ const Wallet = () => {
                 {formatCurrency(totalExpenses)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Including all puhunan
+                Including all puhunan & paid bills
               </p>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -589,7 +649,7 @@ const Wallet = () => {
         </div>
       </div>
 
-      {/* Receivables & Payables Summary */}
+      {/* Receivables & Payables */}
       <div className="grid grid-cols-2 gap-3">
         <div 
           onClick={() => handleCardClick('/due-dates')}
@@ -605,7 +665,7 @@ const Wallet = () => {
                 {formatCurrency(receivables)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {riceCredits?.filter(t => t.status !== 'completed').length || 0} pending payments
+                {riceCredits?.filter(t => t.status !== 'completed' && t.status !== 'cancelled').length || 0} pending payments
               </p>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -634,55 +694,6 @@ const Wallet = () => {
         </div>
       </div>
 
-      {/* Business Breakdown Cards - Clickable */}
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mt-4">
-        Business Breakdown
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {businessCards.map((business) => {
-          const Icon = business.icon
-          return (
-            <div
-              key={business.id}
-              onClick={() => handleCardClick(business.path)}
-              className={`card cursor-pointer hover:shadow-lg transition-all ${business.bgColor} ${business.borderColor} border`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${business.color} text-white`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{business.title}</h3>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Income</p>
-                  <p className="text-sm font-bold text-green-600 dark:text-green-400">
-                    {formatCurrency(business.income)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Puhunan</p>
-                  <p className="text-sm font-bold text-red-600 dark:text-red-400">
-                    {formatCurrency(business.puhunan)}
-                  </p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Profit</p>
-                  <p className={`text-sm font-bold ${business.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {formatCurrency(business.profit)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
       {/* Weekly & Monthly Summary */}
       <div className="grid grid-cols-2 gap-3">
         <div className="card p-4">
@@ -709,6 +720,62 @@ const Wallet = () => {
             {format(monthStart, 'MMM dd')} - {format(monthEnd, 'MMM dd')}
           </p>
         </div>
+      </div>
+
+      {/* Business Breakdown */}
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mt-4">
+        Business Breakdown
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {businessCards.map((business) => {
+          const Icon = business.icon
+          const statusColor = business.profit >= 0 ? 'text-green-600' : 'text-red-600'
+          const statusIcon = business.profit >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />
+          
+          return (
+            <div
+              key={business.id}
+              onClick={() => handleCardClick(business.path)}
+              className={`card cursor-pointer hover:shadow-lg transition-all ${business.bgColor} ${business.borderColor} border`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${business.bgColor}`}>
+                    <Icon className={`w-5 h-5 ${business.color}`} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{business.title}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {business.status}/{business.total} completed
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Income</p>
+                  <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                    {formatCurrency(business.income)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Puhunan</p>
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                    {formatCurrency(business.puhunan)}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Profit</p>
+                  <p className={`text-sm font-bold ${statusColor} flex items-center gap-1`}>
+                    {statusIcon}
+                    {formatCurrency(business.profit)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* Charts */}
