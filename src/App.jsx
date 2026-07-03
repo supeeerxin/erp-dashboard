@@ -34,6 +34,7 @@ const Payables = lazy(() => import('./pages/Payables'))
 const AuditLog = lazy(() => import('./pages/AuditLog'))
 const DueDates = lazy(() => import('./pages/DueDates'))
 const Vehicles = lazy(() => import('./pages/Vehicles'))  // <-- ADDED
+const CarSchedule = lazy(() => import('./pages/CarSchedule'))
 const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
@@ -72,6 +73,7 @@ function App() {
                                       <Route path="audit-log" element={<AuditLog />} />
                                       <Route path="due-dates" element={<DueDates />} />
                                       <Route path="vehicles" element={<Vehicles />} />  {/* <-- ADDED */}
+                                      <Route path="car-schedule" element={<CarSchedule />} />
                                     </Route>
                                     <Route path="*" element={<NotFound />} />
                                   </Routes>
