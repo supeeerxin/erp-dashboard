@@ -35,11 +35,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Payables = lazy(() => import('./pages/Payables'))
 const AuditLog = lazy(() => import('./pages/AuditLog'))
 const DueDates = lazy(() => import('./pages/DueDates'))
-const Vehicles = lazy(() => import('./pages/Vehicles'))  // <-- ADDED
-const CarSchedule = lazy(() => import('./pages/CarSchedule'))
-const Drivers = lazy(() => import('./pages/Drivers'))
-const Rentals = lazy(() => import('./pages/Rentals'))
-const CarSchedule = lazy(() => import('./pages/CarSchedule'))
+const CarRental = lazy(() => import('./pages/CarRental'))
 const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
@@ -57,41 +53,37 @@ function App() {
                       <IncomeProvider>
                         <ExpenseProvider>
                           <PayableProvider>
-                            <VehicleProvider>  {/* <-- ADDED */}
+                            <VehicleProvider>
                               <DriverProvider>
-  <RentalProvider>
-                              <Router>
-                                <Suspense fallback={<LoadingSkeleton />}>
-                                  <Routes>
-                                    <Route path="/login" element={<Login />} />
-                                    <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                                      <Route index element={<Navigate to="/dashboard" replace />} />
-                                      <Route path="dashboard" element={<Dashboard />} />
-                                      <Route path="rice-credit" element={<RiceCredit />} />
-                                      <Route path="cash-loans" element={<CashLoans />} />
-                                      <Route path="bread-orders" element={<BreadOrders />} />
-                                      <Route path="customers" element={<Customers />} />
-                                      <Route path="income" element={<Income />} />
-                                      <Route path="expenses" element={<Expenses />} />
-                                      <Route path="wallet" element={<Wallet />} />
-                                      <Route path="reports" element={<Reports />} />
-                                      <Route path="settings" element={<Settings />} />
-                                      <Route path="payables" element={<Payables />} />
-                                      <Route path="audit-log" element={<AuditLog />} />
-                                      <Route path="due-dates" element={<DueDates />} />
-                                      <Route path="vehicles" element={<Vehicles />} />  {/* <-- ADDED */}
-                                      <Route path="car-schedule" element={<CarSchedule />} />
-                                      <Route path="drivers" element={<Drivers />} />
-<Route path="rentals" element={<Rentals />} />
-<Route path="car-schedule" element={<CarSchedule />} />
-                                    </Route>
-                                    <Route path="*" element={<NotFound />} />
-                                  </Routes>
-                                </Suspense>
-                              </Router>
-     </RentalProvider>
-</DriverProvider>
-                            </VehicleProvider>  {/* <-- ADDED */}
+                                <RentalProvider>
+                                  <Router>
+                                    <Suspense fallback={<LoadingSkeleton />}>
+                                      <Routes>
+                                        <Route path="/login" element={<Login />} />
+                                        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                                          <Route index element={<Navigate to="/dashboard" replace />} />
+                                          <Route path="dashboard" element={<Dashboard />} />
+                                          <Route path="rice-credit" element={<RiceCredit />} />
+                                          <Route path="cash-loans" element={<CashLoans />} />
+                                          <Route path="bread-orders" element={<BreadOrders />} />
+                                          <Route path="customers" element={<Customers />} />
+                                          <Route path="income" element={<Income />} />
+                                          <Route path="expenses" element={<Expenses />} />
+                                          <Route path="wallet" element={<Wallet />} />
+                                          <Route path="reports" element={<Reports />} />
+                                          <Route path="settings" element={<Settings />} />
+                                          <Route path="payables" element={<Payables />} />
+                                          <Route path="audit-log" element={<AuditLog />} />
+                                          <Route path="due-dates" element={<DueDates />} />
+                                          <Route path="car-rental" element={<CarRental />} />
+                                        </Route>
+                                        <Route path="*" element={<NotFound />} />
+                                      </Routes>
+                                    </Suspense>
+                                  </Router>
+                                </RentalProvider>
+                              </DriverProvider>
+                            </VehicleProvider>
                           </PayableProvider>
                         </ExpenseProvider>
                       </IncomeProvider>
