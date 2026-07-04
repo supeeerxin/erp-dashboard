@@ -128,4 +128,91 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
           <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <p className="text-xs text-gray-500 dark:text-gray-400">Total Cost</p>
             <p className="text-lg font-bold text-red-600 dark:text-red-400">
-             
+              {formatCurrency(transaction.total_cost)}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Paid</p>
+            <p className="text-lg font-bold text-green-600 dark:text-green-400">
+              {formatCurrency(totalPaid)}
+            </p>
+          </div>
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Remaining</p>
+            <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+              {formatCurrency(transaction.remaining_balance)}
+            </p>
+          </div>
+        </div>
+
+        {transaction.payments && transaction.payments.length > 0 && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              Payment History ({transaction.payments.length})
+            </h4>
+            <div className="space-y-2">
+              {transaction.payments.map((payment, index) => (
+                <div key={payment.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      Payment #{index + 1}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {formatDateTime(payment.date)}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                    {formatCurrency(payment.amount)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {transaction.notes && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Notes</p>
+            <p className="text-sm text-gray-900 dark:text-white mt-1">{transaction.notes}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ... (other render functions for rice-credit, cash-loan, rental)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              Transaction Details
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 capitalize">
+              {type?.replace('-', ' ') || 'Transaction'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          {renderDetails()}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default TransactionDetailsModal
