@@ -41,6 +41,10 @@ export const BreadProductProvider = ({ children }) => {
     loadProducts()
   }, [])
 
+  const refreshProducts = async () => {
+    await loadProducts()
+  }
+
   const addProduct = async (data) => {
     try {
       const newProduct = {
@@ -201,7 +205,7 @@ export const BreadProductProvider = ({ children }) => {
     getProduct,
     deductInventory,
     restoreInventory,
-    refreshProducts: loadProducts
+    refreshProducts
   }
 
   return (
