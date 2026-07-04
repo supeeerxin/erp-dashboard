@@ -13,7 +13,8 @@ import {
   Clock, 
   CheckCircle, 
   XCircle,
-  DollarSign
+  DollarSign,
+  Eye
 } from 'lucide-react'
 import { useVehicles } from '../../context/VehicleContext'
 import { useDrivers } from '../../context/DriverContext'
@@ -22,6 +23,7 @@ import VehicleModal from '../../components/modals/VehicleModal'
 import DriverModal from '../../components/modals/DriverModal'
 import RentalModal from '../../components/modals/RentalModal'
 import PaymentModal from '../../components/modals/PaymentModal'
+import TransactionDetailsModal from '../../components/modals/TransactionDetailsModal'
 
 const CarRental = () => {
   const [activeTab, setActiveTab] = useState('vehicles')
@@ -34,6 +36,7 @@ const CarRental = () => {
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
   const [isRentalModalOpen, setIsRentalModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState(null)
   const [editingDriver, setEditingDriver] = useState(null)
   const [editingRental, setEditingRental] = useState(null)
@@ -169,6 +172,11 @@ const CarRental = () => {
     await addPayment(selectedRental.id, amount)
     setIsPaymentModalOpen(false)
     setSelectedRental(null)
+  }
+
+  const handleViewDetails = (rental) => {
+    setSelectedRental(rental)
+    setIsDetailsModalOpen(true)
   }
 
   const handleClosePaymentModal = () => {
@@ -457,7 +465,14 @@ const CarRental = () => {
                         <div className="flex items-center gap-3">
                           {getRentalStatusBadge(rental.status)}
                           
-                          {/* Payment Button - only for active rentals with remaining balance */}
+                          <button
+                            onClick={() => handleViewDetails(rental)}
+                            className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4 text-blue-500" />
+                          </button>
+                          
                           {rental.status === 'active' && rental.remaining_balance > 0 && (
                             <button
                               onClick={() => handlePayment(rental)}
@@ -535,14 +550,12 @@ const CarRental = () => {
 
         return (
           <div className="space-y-4">
-            {/* Calendar Header */}
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
               </h3>
             </div>
 
-            {/* Calendar Grid */}
             <div className="card">
               <div className="grid grid-cols-7 gap-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -551,12 +564,10 @@ const CarRental = () => {
                   </div>
                 ))}
                 
-                {/* Empty days before first day of month */}
                 {[...Array(firstDay)].map((_, i) => (
                   <div key={`empty-${i}`} className="min-h-20 rounded-lg p-2 bg-gray-50 dark:bg-gray-800/30" />
                 ))}
                 
-                {/* Calendar days */}
                 {[...Array(daysInMonth)].map((_, i) => {
                   const day = i + 1
                   const dayRentals = getRentalsForDay(day)
@@ -611,7 +622,6 @@ const CarRental = () => {
               </div>
             </div>
 
-            {/* Legend */}
             <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-500"></div>
@@ -627,7 +637,6 @@ const CarRental = () => {
               </div>
             </div>
 
-            {/* Selected Day Details */}
             {selectedDate && selectedDayRentals && selectedDayRentals.length > 0 && (
               <div className="card">
                 <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -796,6 +805,16 @@ const CarRental = () => {
         customerName={selectedRental?.driver_name || 'Unknown'}
         remainingBalance={selectedRental?.remaining_balance || 0}
         suggestedAmount={selectedRental?.remaining_balance || 0}
+      />
+
+      <TransactionDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => {
+          setIsDetailsModalOpen(false)
+          setSelectedRental(null)
+        }}
+        transaction={selectedRental}
+        type="rental"
       />
     </div>
   )
