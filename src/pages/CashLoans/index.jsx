@@ -51,8 +51,13 @@ const CashLoans = () => {
     }
   }
 
-  const handleAddLoan = (data) => {
-    addLoan(data)
+  const handleAddLoan = async (data) => {
+    console.log('📝 Adding loan:', data)
+    const result = await addLoan(data)
+    if (result) {
+      setIsModalOpen(false)
+      setEditingLoan(null)
+    }
   }
 
   const handleEditLoan = (loan) => {
@@ -60,9 +65,13 @@ const CashLoans = () => {
     setIsModalOpen(true)
   }
 
-  const handleUpdateLoan = (data) => {
-    updateLoan(editingLoan.id, data)
-    setEditingLoan(null)
+  const handleUpdateLoan = async (data) => {
+    console.log('📝 Updating loan:', data)
+    const result = await updateLoan(editingLoan.id, data)
+    if (result) {
+      setEditingLoan(null)
+      setIsModalOpen(false)
+    }
   }
 
   const handleDeleteLoan = (id) => {
@@ -89,6 +98,7 @@ const CashLoans = () => {
   const handleRecordPayment = (amount) => {
     addPayment(selectedLoan.id, amount)
     setSelectedLoan(null)
+    setIsPaymentModalOpen(false)
   }
 
   const handleViewHistory = (loan) => {
