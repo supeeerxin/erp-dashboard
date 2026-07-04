@@ -32,11 +32,12 @@ const RiceCredit = () => {
   const currentList = showTrash ? deletedTransactions : transactions
 
   const filteredTransactions = currentList.filter(t => {
-    const customer = getCustomer(t.customerId)
+    const customer = getCustomer(t.customer_id)
     const search = searchQuery.toLowerCase()
     return customer?.name?.toLowerCase().includes(search) ||
-           t.customerName?.toLowerCase().includes(search) ||
-           t.description?.toLowerCase().includes(search)
+           t.customer_name?.toLowerCase().includes(search) ||
+           t.description?.toLowerCase().includes(search) ||
+           t.transaction_number?.toLowerCase().includes(search)
   })
 
   const getStatusBadge = (status) => {
@@ -50,8 +51,12 @@ const RiceCredit = () => {
     }
   }
 
-  const handleAddTransaction = (data) => {
-    addTransaction(data)
+  const handleAddTransaction = async (data) => {
+    const result = await addTransaction(data)
+    if (result) {
+      setIsModalOpen(false)
+      setEditingTransaction(null)
+    }
   }
 
   const handleEditTransaction = (transaction) => {
@@ -59,9 +64,12 @@ const RiceCredit = () => {
     setIsModalOpen(true)
   }
 
-  const handleUpdateTransaction = (data) => {
-    updateTransaction(editingTransaction.id, data)
-    setEditingTransaction(null)
+  const handleUpdateTransaction = async (data) => {
+    const result = await updateTransaction(editingTransaction.id, data)
+    if (result) {
+      setEditingTransaction(null)
+      setIsModalOpen(false)
+    }
   }
 
   const handleDeleteTransaction = (id) => {
@@ -88,6 +96,7 @@ const RiceCredit = () => {
   const handleRecordPayment = (amount) => {
     addPayment(selectedTransaction.id, amount)
     setSelectedTransaction(null)
+    setIsPaymentModalOpen(false)
   }
 
   const handleViewHistory = (transaction) => {
@@ -102,7 +111,7 @@ const RiceCredit = () => {
 
   const getTotalPayments = (transaction) => {
     const payments = transaction.payments || []
-    return payments.reduce((sum, p) => sum + p.amount, 0)
+    return payments.reduce((sum, p) => sum + (p.amount || 0), 0)
   }
 
   return (
@@ -140,25 +149,25 @@ const RiceCredit = () => {
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
           <p className="text-lg font-bold text-gray-900 dark:text-white">
-            ₱{totals.totalAmount.toLocaleString()}
+            ₱{(totals.totalAmount || 0).toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Cost</p>
           <p className="text-lg font-bold text-gray-900 dark:text-white">
-            ₱{totals.totalCost.toLocaleString()}
+            ₱{(totals.totalCost || 0).toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Profit</p>
-          <p className={`text-lg font-bold ${totals.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            ₱{totals.totalProfit.toLocaleString()}
+          <p className={`text-lg font-bold ${(totals.totalProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            ₱{(totals.totalProfit || 0).toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Remaining Balance</p>
           <p className="text-lg font-bold text-primary-500">
-            ₱{totals.totalRemaining.toLocaleString()}
+            ₱{(totals.totalRemaining || 0).toLocaleString()}
           </p>
         </div>
       </div>
@@ -212,39 +221,38 @@ const RiceCredit = () => {
               </thead>
               <tbody>
                 {filteredTransactions.map((transaction) => {
-                  const customer = getCustomer(transaction.customerId)
+                  const customer = getCustomer(transaction.customer_id)
                   const totalPaid = getTotalPayments(transaction)
-                  const downPayment = transaction.downPayment || 0
-                  const numberOfPayments = transaction.numberOfPayments || 1
-                  const isPaid = transaction.status === 'completed' || transaction.remainingBalance === 0
+                  const downPayment = transaction.down_payment || 0
+                  const numberOfPayments = transaction.number_of_payments || 1
+                  const isPaid = transaction.status === 'completed' || transaction.remaining_balance === 0
                   
                   return (
                     <tr key={transaction.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                     
                       <td className="table-cell font-mono text-xs text-gray-600 dark:text-gray-400">
-  {transaction.transactionNumber || `TRX-${transaction.id.toString().slice(-6)}`}
-</td>
+                        {transaction.transaction_number || `TRX-${transaction.id.toString().slice(-6)}`}
+                      </td>
                       <td className="table-cell font-medium">
-                        {customer?.name || transaction.customerName || 'Unknown'}
+                        {customer?.name || transaction.customer_name || 'Unknown'}
                       </td>
                       <td className="table-cell text-right">
-                        ₱{transaction.amount.toLocaleString()}
+                        ₱{(transaction.amount || 0).toLocaleString()}
                       </td>
                       <td className="table-cell text-right text-blue-600 dark:text-blue-400">
-                        ₱{downPayment.toLocaleString()}
+                        ₱{(downPayment || 0).toLocaleString()}
                       </td>
                       <td className="table-cell text-right text-green-600 dark:text-green-400">
-                        ₱{totalPaid.toLocaleString()}
+                        ₱{(totalPaid || 0).toLocaleString()}
                       </td>
                       <td className="table-cell text-right font-medium text-primary-500">
-                        ₱{transaction.remainingBalance.toLocaleString()}
+                        ₱{(transaction.remaining_balance || 0).toLocaleString()}
                       </td>
                       <td className="table-cell text-right text-sm">
                         {numberOfPayments > 1 ? (
                           <span className="text-gray-600 dark:text-gray-400">
                             {numberOfPayments} gives
                             <br />
-                            <span className="text-xs">₱{transaction.paymentPerGive?.toFixed(2)}/give</span>
+                            <span className="text-xs">₱{(transaction.payment_per_give || 0).toFixed(2)}/give</span>
                           </span>
                         ) : (
                           <span className="text-gray-400">1 give</span>
@@ -252,7 +260,7 @@ const RiceCredit = () => {
                       </td>
                       <td className="table-cell">
                         {getStatusBadge(transaction.status)}
-                        {transaction.isDeleted && (
+                        {transaction.is_deleted && (
                           <span className="badge badge-danger ml-1">Deleted</span>
                         )}
                       </td>
@@ -265,7 +273,7 @@ const RiceCredit = () => {
                           >
                             <Eye className="w-4 h-4 text-blue-500" />
                           </button>
-                          {!transaction.isDeleted && !isPaid && (
+                          {!transaction.is_deleted && !isPaid && (
                             <button
                               onClick={() => handlePayment(transaction)}
                               className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
@@ -274,7 +282,7 @@ const RiceCredit = () => {
                               <DollarSign className="w-4 h-4 text-green-500" />
                             </button>
                           )}
-                          {transaction.isDeleted ? (
+                          {transaction.is_deleted ? (
                             <>
                               <button
                                 onClick={() => handleRestoreTransaction(transaction.id)}
@@ -327,18 +335,18 @@ const RiceCredit = () => {
       />
 
       <PaymentModal
-  isOpen={isPaymentModalOpen}
-  onClose={() => {
-    setIsPaymentModalOpen(false)
-    setSelectedTransaction(null)
-  }}
-  onSave={handleRecordPayment}
-  customerName={selectedTransaction ? 
-    getCustomer(selectedTransaction.customerId)?.name || selectedTransaction.customerName : ''
-  }
-  remainingBalance={selectedTransaction?.remainingBalance || 0}
-  suggestedAmount={selectedTransaction?.paymentPerGive || 0}
-/>
+        isOpen={isPaymentModalOpen}
+        onClose={() => {
+          setIsPaymentModalOpen(false)
+          setSelectedTransaction(null)
+        }}
+        onSave={handleRecordPayment}
+        customerName={selectedTransaction ? 
+          getCustomer(selectedTransaction.customer_id)?.name || selectedTransaction.customer_name : ''
+        }
+        remainingBalance={selectedTransaction?.remaining_balance || 0}
+        suggestedAmount={selectedTransaction?.payment_per_give || 0}
+      />
 
       <TransactionHistoryModal
         isOpen={isHistoryModalOpen}
