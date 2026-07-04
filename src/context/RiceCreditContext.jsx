@@ -47,7 +47,6 @@ export const RiceCreditProvider = ({ children }) => {
     try {
       console.log('📝 Adding rice credit with data:', data)
 
-      // Validate required fields
       if (!data.customerId || !data.amount) {
         showNotification('Please select a customer and enter amount', 'error')
         return null
@@ -126,6 +125,7 @@ export const RiceCreditProvider = ({ children }) => {
       const downPayment = parseFloat(data.downPayment) || transaction.down_payment || 0
       const numberOfPayments = parseInt(data.numberOfPayments) || transaction.number_of_payments || 1
       const remainingBalance = totalAmount - downPayment
+      const paymentPerGive = numberOfPayments > 1 ? remainingBalance / numberOfPayments : remainingBalance
       const cost = parseFloat(data.cost) || transaction.cost || 0
       const profit = totalAmount - cost
 
@@ -137,7 +137,7 @@ export const RiceCreditProvider = ({ children }) => {
           cost: cost,
           down_payment: downPayment,
           number_of_payments: numberOfPayments,
-          payment_per_give: numberOfPayments > 1 ? remainingBalance / numberOfPayments : remainingBalance,
+          payment_per_give: paymentPerGive,
           remaining_balance: remainingBalance,
           due_date: data.dueDate || transaction.due_date,
           profit: profit,
