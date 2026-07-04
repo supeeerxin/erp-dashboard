@@ -18,23 +18,26 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
     dueDate: '',
     description: ''
   })
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (loan) {
       setFormData({
-        customerId: loan.customerId || '',
-        customerName: loan.customerName || '',
+        customerId: loan.customer_id || '',
+        customerName: loan.customer_name || '',
         principal: loan.principal || '',
-        interestRate: loan.interestRate || '',
-        interestType: loan.interestType || 'percentage',
-        downPayment: loan.downPayment || '',
-        numberOfPayments: loan.numberOfPayments || '1',
-        paymentTerm: loan.paymentTerm || 'months',
-        termValue: loan.termValue || '1',
-        dueDate: loan.dueDate || '',
+        interestRate: loan.interest_rate || '',
+        interestType: loan.interest_type || 'percentage',
+        downPayment: loan.down_payment || '',
+        numberOfPayments: loan.number_of_payments || '1',
+        paymentTerm: loan.payment_term || 'months',
+        termValue: loan.term_value || '1',
+        dueDate: loan.due_date || '',
         description: loan.description || ''
       })
     } else {
+      const today = new Date()
       setFormData({
         customerId: '',
         customerName: '',
@@ -45,15 +48,19 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
         numberOfPayments: '1',
         paymentTerm: 'months',
         termValue: '1',
-        dueDate: '',
+        dueDate: format(addMonths(today, 1), 'yyyy-MM-dd'),
         description: ''
       })
     }
+    setErrors({})
   }, [loan, isOpen])
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }))
+    }
   }
 
   const handleCustomerSelect = (e) => {
@@ -86,25 +93,49 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
     }
   }, [formData.termValue, formData.paymentTerm])
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (!formData.customerId || !formData.principal) {
-      alert('Please select a customer and enter principal amount')
-      return
+  const validateForm = () => {
+    const newErrors = {}
+    
+    if (!formData.customerId) {
+      newErrors.customerId = 'Please select a customer'
+    }
+    if (!formData.principal || parseFloat(formData.principal) <= 0) {
+      newErrors.principal = 'Please enter a valid principal amount'
     }
     if (!formData.dueDate) {
-      alert('Please set a due date')
+      newErrors.dueDate = 'Please set a due date'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
       return
     }
-    onSave({
-      ...formData,
-      principal: parseFloat(formData.principal),
+
+    setLoading(true)
+
+    const submitData = {
+      customerId: parseInt(formData.customerId),
+      customerName: formData.customerName,
+      principal: parseFloat(formData.principal) || 0,
       interestRate: parseFloat(formData.interestRate) || 0,
+      interestType: formData.interestType,
       downPayment: parseFloat(formData.downPayment) || 0,
       numberOfPayments: parseInt(formData.numberOfPayments) || 1,
+      paymentTerm: formData.paymentTerm,
       termValue: parseInt(formData.termValue) || 1,
-      dueDate: formData.dueDate
-    })
+      dueDate: formData.dueDate,
+      description: formData.description || ''
+    }
+
+    console.log('📝 Submitting loan:', submitData)
+    onSave(submitData)
+    setLoading(false)
     onClose()
   }
 
@@ -115,7 +146,6 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
   const interestType = formData.interestType
   const downPayment = parseFloat(formData.downPayment) || 0
   const numberOfPayments = parseInt(formData.numberOfPayments) || 1
-  const termValue = parseInt(formData.termValue) || 1
   
   const interestAmount = interestType === 'percentage' 
     ? (principal * interestRate / 100) 
@@ -144,7 +174,7 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
               name="customerId"
               value={formData.customerId}
               onChange={handleCustomerSelect}
-              className="input-field"
+              className={`input-field ${errors.customerId ? 'border-red-500' : ''}`}
               required
             >
               <option value="">Select Customer</option>
@@ -154,6 +184,9 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
                 </option>
               ))}
             </select>
+            {errors.customerId && (
+              <p className="text-xs text-red-500 mt-1">{errors.customerId}</p>
+            )}
           </div>
 
           <div>
@@ -163,12 +196,15 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
               name="principal"
               value={formData.principal}
               onChange={handleChange}
-              className="input-field"
+              className={`input-field ${errors.principal ? 'border-red-500' : ''}`}
               placeholder="0.00"
               min="0"
               step="0.01"
               required
             />
+            {errors.principal && (
+              <p className="text-xs text-red-500 mt-1">{errors.principal}</p>
+            )}
           </div>
 
           <div>
@@ -232,6 +268,9 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Due Date: <span className="font-medium text-primary-500">{new Date(formData.dueDate).toLocaleDateString()}</span>
                 </p>
+              )}
+              {errors.dueDate && (
+                <p className="text-xs text-red-500 mt-1">{errors.dueDate}</p>
               )}
             </div>
 
@@ -299,8 +338,12 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
             <button type="button" onClick={onClose} className="flex-1 btn-secondary">
               Cancel
             </button>
-            <button type="submit" className="flex-1 btn-primary">
-              {loan ? 'Update' : 'Create'} Loan
+            <button 
+              type="submit" 
+              className="flex-1 btn-primary"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : (loan ? 'Update' : 'Create')} Loan
             </button>
           </div>
         </form>
