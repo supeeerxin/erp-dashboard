@@ -13,10 +13,10 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
     interestType: 'percentage',
     downPayment: '',
     numberOfPayments: '1',
-    paymentTerm: 'months', // months or days
+    paymentTerm: 'months',
     termValue: '1',
-    description: '',
-    dueDate: ''
+    dueDate: '',
+    description: ''
   })
 
   useEffect(() => {
@@ -31,8 +31,8 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
         numberOfPayments: loan.numberOfPayments || '1',
         paymentTerm: loan.paymentTerm || 'months',
         termValue: loan.termValue || '1',
-        description: loan.description || '',
-        dueDate: loan.dueDate || ''
+        dueDate: loan.dueDate || '',
+        description: loan.description || ''
       })
     } else {
       setFormData({
@@ -45,8 +45,8 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
         numberOfPayments: '1',
         paymentTerm: 'months',
         termValue: '1',
-        description: '',
-        dueDate: ''
+        dueDate: '',
+        description: ''
       })
     }
   }, [loan, isOpen])
@@ -92,20 +92,24 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
       alert('Please select a customer and enter principal amount')
       return
     }
+    if (!formData.dueDate) {
+      alert('Please set a due date')
+      return
+    }
     onSave({
       ...formData,
       principal: parseFloat(formData.principal),
       interestRate: parseFloat(formData.interestRate) || 0,
       downPayment: parseFloat(formData.downPayment) || 0,
       numberOfPayments: parseInt(formData.numberOfPayments) || 1,
-      termValue: parseInt(formData.termValue) || 1
+      termValue: parseInt(formData.termValue) || 1,
+      dueDate: formData.dueDate
     })
     onClose()
   }
 
   if (!isOpen) return null
 
-  // Compute values
   const principal = parseFloat(formData.principal) || 0
   const interestRate = parseFloat(formData.interestRate) || 0
   const interestType = formData.interestType
@@ -128,10 +132,7 @@ const CashLoanModal = ({ isOpen, onClose, onSave, loan }) => {
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
             {loan ? 'Edit Cash Loan' : 'New Cash Loan'}
           </h3>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
