@@ -6,6 +6,7 @@ import CashLoanModal from '../../components/modals/CashLoanModal'
 import PaymentModal from '../../components/modals/PaymentModal'
 import TransactionHistoryModal from '../../components/modals/TransactionHistoryModal'
 
+
 const CashLoans = () => {
   const { 
     loans, 
