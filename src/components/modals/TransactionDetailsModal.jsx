@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, Calendar, Clock, User, Package, DollarSign, CreditCard, FileText, CheckCircle, AlertCircle } from 'lucide-react'
+import { X, Calendar, Clock, User, Package, DollarSign, CreditCard, FileText, CheckCircle, AlertCircle, Car as CarIcon } from 'lucide-react'
 import { useCustomers } from '../../context/CustomerContext'
 
 const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
@@ -46,7 +46,6 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
     return '₱' + (amount || 0).toLocaleString()
   }
 
-  // Get total paid from payments
   const getTotalPaid = () => {
     const payments = transaction.payments || []
     return payments.reduce((sum, p) => sum + (p.amount || 0), 0)
@@ -54,7 +53,22 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
 
   const totalPaid = getTotalPaid()
 
-  // Render Rice Credit Details
+  // Determine which render function to use based on type
+  const renderDetails = () => {
+    switch (type) {
+      case 'rice-credit':
+        return renderRiceCreditDetails()
+      case 'cash-loan':
+        return renderCashLoanDetails()
+      case 'bread-order':
+        return renderBreadOrderDetails()
+      case 'rental':
+        return renderRentalDetails()
+      default:
+        return renderRiceCreditDetails()
+    }
+  }
+
   const renderRiceCreditDetails = () => {
     return (
       <div className="space-y-4">
@@ -165,7 +179,6 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
     )
   }
 
-  // Render Cash Loan Details
   const renderCashLoanDetails = () => {
     return (
       <div className="space-y-4">
@@ -271,7 +284,6 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
     )
   }
 
-  // Render Bread Order Details
   const renderBreadOrderDetails = () => {
     return (
       <div className="space-y-4">
@@ -386,7 +398,6 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
     )
   }
 
-  // Render Rental Details
   const renderRentalDetails = () => {
     return (
       <div className="space-y-4">
@@ -480,22 +491,6 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
         )}
       </div>
     )
-  }
-
-  // Determine which render function to use based on type
-  const renderDetails = () => {
-    switch (type) {
-      case 'rice-credit':
-        return renderRiceCreditDetails()
-      case 'cash-loan':
-        return renderCashLoanDetails()
-      case 'bread-order':
-        return renderBreadOrderDetails()
-      case 'rental':
-        return renderRentalDetails()
-      default:
-        return renderRiceCreditDetails()
-    }
   }
 
   return (
