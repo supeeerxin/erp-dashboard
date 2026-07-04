@@ -243,18 +243,32 @@ export const CashLoanProvider = ({ children }) => {
   }
 
   const getTotals = () => {
-    const active = loans
-    const totalPrincipal = active.reduce((sum, l) => sum + (l.principal || 0), 0)
-    const totalInterest = active.reduce((sum, l) => sum + (l.interest_amount || 0), 0)
-    const totalPayable = active.reduce((sum, l) => sum + (l.total_payable || 0), 0)
-    const totalPaid = active.reduce((sum, l) => {
+    // Safe check - if loans is undefined or not an array, return default values
+    if (!loans || !Array.isArray(loans)) {
+      return {
+        totalPrincipal: 0,
+        totalInterest: 0,
+        totalPayable: 0,
+        totalPaid: 0,
+        totalRemaining: 0,
+        overdueCount: 0,
+        completedCount: 0,
+        activeCount: 0,
+        totalLoans: 0
+      }
+    }
+
+    const totalPrincipal = loans.reduce((sum, l) => sum + (l.principal || 0), 0)
+    const totalInterest = loans.reduce((sum, l) => sum + (l.interest_amount || 0), 0)
+    const totalPayable = loans.reduce((sum, l) => sum + (l.total_payable || 0), 0)
+    const totalPaid = loans.reduce((sum, l) => {
       const paid = (l.payments || []).reduce((s, p) => s + (p.amount || 0), 0)
       return sum + paid
     }, 0)
-    const totalRemaining = active.reduce((sum, l) => sum + (l.remaining_balance || 0), 0)
-    const overdueCount = active.filter(l => l.status === 'overdue').length
-    const completedCount = active.filter(l => l.status === 'completed').length
-    const activeCount = active.filter(l => l.status === 'active').length
+    const totalRemaining = loans.reduce((sum, l) => sum + (l.remaining_balance || 0), 0)
+    const overdueCount = loans.filter(l => l.status === 'overdue').length
+    const completedCount = loans.filter(l => l.status === 'completed').length
+    const activeCount = loans.filter(l => l.status === 'active').length
 
     return {
       totalPrincipal,
@@ -265,15 +279,22 @@ export const CashLoanProvider = ({ children }) => {
       overdueCount,
       completedCount,
       activeCount,
-      totalLoans: active.length
+      totalLoans: loans.length
     }
   }
 
-  const getActiveLoans = () => loans.filter(l => !l.is_deleted)
-  const getDeletedLoans = () => loans.filter(l => l.is_deleted)
+  const getActiveLoans = () => {
+    return loans && Array.isArray(loans) ? loans.filter(l => !l.is_deleted) : []
+  }
+
+  const getDeletedLoans = () => {
+    return loans && Array.isArray(loans) ? loans.filter(l => l.is_deleted) : []
+  }
 
   const value = {
-    loans,
+    loans: getActiveLoans(),
+    deletedLoans: getDeletedLoans(),
+    allLoans: loans,
     loading,
     addLoan,
     updateLoan,
