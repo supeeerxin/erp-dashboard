@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
-import { ShoppingBag, Plus, Search, Edit2, Trash2, RotateCcw, Eye, Archive, Package, CheckCircle, Clock, Truck, List, AlertCircle, DollarSign } from 'lucide-react'
+import { ShoppingBag, Plus, Search, Edit2, Trash2, RotateCcw, Eye, Archive, Package, CheckCircle, Clock, Truck, List, AlertCircle } from 'lucide-react'
 import { useBreadOrders } from '../../context/BreadOrderContext'
 import { useBreadProducts } from '../../context/BreadProductContext'
 import { useCustomers } from '../../context/CustomerContext'
 import BreadOrderModal from '../../components/modals/BreadOrderModal'
 import BreadProductModal from '../../components/modals/BreadProductModal'
-import TransactionHistoryModal from '../../components/modals/TransactionHistoryModal'
 import PaymentModal from '../../components/modals/PaymentModal'
+import TransactionDetailsModal from '../../components/modals/TransactionDetailsModal'
 
 const BreadOrders = () => {
   const { 
@@ -34,8 +34,8 @@ const BreadOrders = () => {
   const [showProducts, setShowProducts] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
   const [selectedOrder, setSelectedOrder] = useState(null)
@@ -44,12 +44,12 @@ const BreadOrders = () => {
   const currentList = showTrash ? deletedOrders : orders
 
   const filteredOrders = currentList.filter(o => {
-    const customer = getCustomer(o.customerId)
+    const customer = getCustomer(o.customer_id)
     const search = searchQuery.toLowerCase()
     return customer?.name?.toLowerCase().includes(search) ||
-           o.customerName?.toLowerCase().includes(search) ||
-           o.productName?.toLowerCase().includes(search) ||
-           o.transactionNumber?.toLowerCase().includes(search) ||
+           o.customer_name?.toLowerCase().includes(search) ||
+           o.product_name?.toLowerCase().includes(search) ||
+           o.transaction_number?.toLowerCase().includes(search) ||
            o.notes?.toLowerCase().includes(search)
   })
 
@@ -60,7 +60,7 @@ const BreadOrders = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'completed':
-        return <span className="badge badge-success">Paid</span>
+        return <span className="badge badge-success">Completed</span>
       case 'delivered':
         return <span className="badge badge-info">Delivered</span>
       case 'pending':
@@ -70,21 +70,11 @@ const BreadOrders = () => {
     }
   }
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4" />
-      case 'delivered':
-        return <Truck className="w-4 h-4" />
-      default:
-        return <Clock className="w-4 h-4" />
-    }
-  }
-
-  const handleAddOrder = (data) => {
-    const result = addOrder(data)
-    if (result === null) {
-      return
+  const handleAddOrder = async (data) => {
+    const result = await addOrder(data)
+    if (result) {
+      setIsModalOpen(false)
+      setEditingOrder(null)
     }
   }
 
@@ -93,9 +83,12 @@ const BreadOrders = () => {
     setIsModalOpen(true)
   }
 
-  const handleUpdateOrder = (data) => {
-    updateOrder(editingOrder.id, data)
-    setEditingOrder(null)
+  const handleUpdateOrder = async (data) => {
+    const result = await updateOrder(editingOrder.id, data)
+    if (result) {
+      setEditingOrder(null)
+      setIsModalOpen(false)
+    }
   }
 
   const handleDeleteOrder = (id) => {
@@ -114,9 +107,8 @@ const BreadOrders = () => {
     }
   }
 
-  const handleViewHistory = (order) => {
-    setSelectedOrder(order)
-    setIsHistoryModalOpen(true)
+  const handleStatusChange = (id, status) => {
+    updateOrderStatus(id, status)
   }
 
   const handlePayment = (order) => {
@@ -127,6 +119,12 @@ const BreadOrders = () => {
   const handleRecordPayment = (amount) => {
     addPayment(selectedOrder.id, amount)
     setSelectedOrder(null)
+    setIsPaymentModalOpen(false)
+  }
+
+  const handleViewDetails = (order) => {
+    setSelectedOrder(order)
+    setIsDetailsModalOpen(true)
   }
 
   const handleCloseModal = () => {
@@ -134,8 +132,12 @@ const BreadOrders = () => {
     setEditingOrder(null)
   }
 
-  const handleAddProduct = (data) => {
-    addProduct(data)
+  const handleAddProduct = async (data) => {
+    const result = await addProduct(data)
+    if (result) {
+      setIsProductModalOpen(false)
+      setEditingProduct(null)
+    }
   }
 
   const handleEditProduct = (product) => {
@@ -143,9 +145,12 @@ const BreadOrders = () => {
     setIsProductModalOpen(true)
   }
 
-  const handleUpdateProduct = (data) => {
-    updateProduct(editingProduct.id, data)
-    setEditingProduct(null)
+  const handleUpdateProduct = async (data) => {
+    const result = await updateProduct(editingProduct.id, data)
+    if (result) {
+      setEditingProduct(null)
+      setIsProductModalOpen(false)
+    }
   }
 
   const handleDeleteProduct = (id) => {
@@ -160,7 +165,8 @@ const BreadOrders = () => {
   }
 
   const getTotalPayments = (order) => {
-    return (order.payments || []).reduce((sum, p) => sum + p.amount, 0)
+    const payments = order.payments || []
+    return payments.reduce((sum, p) => sum + (p.amount || 0), 0)
   }
 
   return (
@@ -211,22 +217,28 @@ const BreadOrders = () => {
 
       {/* Stats */}
       {!showProducts && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="card p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">Total Orders</p>
             <p className="text-lg font-bold text-gray-900 dark:text-white">{totals.totalOrders}</p>
           </div>
           <div className="card p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
-            <p className="text-lg font-bold text-primary-500">₱{totals.totalSelling?.toLocaleString() || 0}</p>
+            <p className="text-lg font-bold text-primary-500">₱{(totals.totalSelling || 0).toLocaleString()}</p>
           </div>
           <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-            <p className="text-lg font-bold text-green-600">₱{totals.totalPaid?.toLocaleString() || 0}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Total Cost</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">₱{(totals.totalCost || 0).toLocaleString()}</p>
           </div>
           <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
-            <p className="text-lg font-bold text-red-500">₱{totals.totalRemaining?.toLocaleString() || 0}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Total Profit</p>
+            <p className={`text-lg font-bold ${(totals.totalProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              ₱{(totals.totalProfit || 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="card p-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+            <p className="text-lg font-bold text-green-500">{totals.completed}</p>
           </div>
         </div>
       )}
@@ -258,8 +270,8 @@ const BreadOrders = () => {
             </div>
           ) : (
             filteredProducts.map(product => {
-              const isLowStock = (product.stockBoxes || 0) <= 5 && (product.stockBoxes || 0) > 0
-              const isOutOfStock = (product.stockBoxes || 0) === 0
+              const isLowStock = (product.stock_boxes || 0) <= 5 && (product.stock_boxes || 0) > 0
+              const isOutOfStock = (product.stock_boxes || 0) === 0
               
               return (
                 <div key={product.id} className="card card-hover">
@@ -268,15 +280,15 @@ const BreadOrders = () => {
                       <h3 className="font-semibold text-gray-900 dark:text-white">{product.name}</h3>
                       <div className="mt-2 space-y-1 text-sm">
                         <p className="text-gray-600 dark:text-gray-400">
-                          Selling: <span className="font-medium text-primary-500">₱{product.sellingPricePerBox?.toLocaleString() || 0}/box</span>
-                          <span className="text-gray-400 ml-1">({product.piecesPerBox || 24} pcs)</span>
+                          Selling: <span className="font-medium text-primary-500">₱{(product.selling_price_per_box || 0).toLocaleString()}/box</span>
+                          <span className="text-gray-400 ml-1">({product.pieces_per_box || 24} pcs)</span>
                         </p>
                         <p className="text-gray-600 dark:text-gray-400">
-                          Cost: <span className="font-medium text-gray-900 dark:text-white">₱{product.costPerBox?.toLocaleString() || 0}/box</span>
+                          Cost: <span className="font-medium text-gray-900 dark:text-white">₱{(product.cost_per_box || 0).toLocaleString()}/box</span>
                         </p>
                         <div className="flex items-center gap-2">
                           <p className={`text-sm font-medium ${isOutOfStock ? 'text-red-500' : isLowStock ? 'text-yellow-500' : 'text-gray-600 dark:text-gray-400'}`}>
-                            Stock: {product.stockBoxes || 0} boxes
+                            Stock: {product.stock_boxes || 0} boxes
                           </p>
                           {isLowStock && !isOutOfStock && (
                             <span className="text-xs text-yellow-500 flex items-center gap-1">
@@ -292,16 +304,10 @@ const BreadOrders = () => {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <button
-                        onClick={() => handleEditProduct(product)}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      <button onClick={() => handleEditProduct(product)} className="p-1.5 rounded-lg hover:bg-gray-100">
+                        <Edit2 className="w-4 h-4 text-gray-500" />
                       </button>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
-                      >
+                      <button onClick={() => handleDeleteProduct(product.id)} className="p-1.5 rounded-lg hover:bg-red-100">
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </button>
                     </div>
@@ -338,47 +344,51 @@ const BreadOrders = () => {
                     <th className="table-header">Customer</th>
                     <th className="table-header">Product</th>
                     <th className="table-header text-right">Boxes</th>
-                    <th className="table-header text-right">Total</th>
-                    <th className="table-header text-right">Paid</th>
-                    <th className="table-header text-right">Balance</th>
+                    <th className="table-header text-right">Pieces</th>
+                    <th className="table-header text-right">Selling</th>
+                    <th className="table-header text-right">Cost</th>
+                    <th className="table-header text-right">Profit</th>
                     <th className="table-header">Status</th>
                     <th className="table-header text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOrders.map((order) => {
-                    const customer = getCustomer(order.customerId)
-                    const product = products.find(p => p.id === order.productId)
+                    const customer = getCustomer(order.customer_id)
+                    const product = products.find(p => p.id === order.product_id)
                     const totalPaid = getTotalPayments(order)
-                    const isPaid = order.status === 'completed' || order.remainingBalance === 0
+                    const isPaid = order.status === 'completed' || order.remaining_balance === 0
                     
                     return (
                       <tr key={order.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <td className="table-cell font-mono text-xs text-gray-600 dark:text-gray-400">
-                          {order.transactionNumber || `ORD-${order.id.toString().slice(-6)}`}
+                          {order.transaction_number || `ORD-${order.id.toString().slice(-6)}`}
                         </td>
                         <td className="table-cell font-medium">
-                          {customer?.name || order.customerName || 'Unknown'}
+                          {customer?.name || order.customer_name || 'Unknown'}
                         </td>
                         <td className="table-cell">
-                          {product?.name || order.productName || 'Unknown'}
+                          {product?.name || order.product_name || 'Unknown'}
                         </td>
                         <td className="table-cell text-right">
                           {order.boxes || 0}
                         </td>
+                        <td className="table-cell text-right">
+                          {order.pieces || 0}
+                        </td>
                         <td className="table-cell text-right font-medium text-primary-500">
-                          ₱{order.totalSellingPrice?.toLocaleString() || 0}
+                          ₱{(order.total_selling_price || 0).toLocaleString()}
                         </td>
-                        <td className="table-cell text-right text-green-600">
-                          ₱{totalPaid.toLocaleString()}
+                        <td className="table-cell text-right text-gray-500">
+                          ₱{(order.total_cost || 0).toLocaleString()}
                         </td>
-                        <td className="table-cell text-right font-medium text-red-500">
-                          ₱{order.remainingBalance?.toLocaleString() || 0}
+                        <td className={`table-cell text-right font-medium ${(order.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ₱{(order.profit || 0).toLocaleString()}
                         </td>
                         <td className="table-cell">
                           <div className="flex items-center gap-2">
                             {getStatusBadge(order.status)}
-                            {order.isDeleted && (
+                            {order.is_deleted && (
                               <span className="badge badge-danger">Deleted</span>
                             )}
                           </div>
@@ -386,14 +396,14 @@ const BreadOrders = () => {
                         <td className="table-cell text-right">
                           <div className="flex items-center justify-end gap-1 flex-wrap">
                             <button
-                              onClick={() => handleViewHistory(order)}
+                              onClick={() => handleViewDetails(order)}
                               className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
-                              title="View History"
+                              title="View Details"
                             >
                               <Eye className="w-4 h-4 text-blue-500" />
                             </button>
                             
-                            {!order.isDeleted && !isPaid && (
+                            {!order.is_deleted && !isPaid && (
                               <button
                                 onClick={() => handlePayment(order)}
                                 className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
@@ -403,16 +413,19 @@ const BreadOrders = () => {
                               </button>
                             )}
 
-                            {!order.isDeleted && (
-                              <button
-                                onClick={() => handleEditOrder(order)}
-                                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            {!order.is_deleted && (
+                              <select
+                                value={order.status}
+                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                className="text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                               >
-                                <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                              </button>
+                                <option value="pending">Pending</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="completed">Paid</option>
+                              </select>
                             )}
 
-                            {order.isDeleted ? (
+                            {order.is_deleted ? (
                               <>
                                 <button
                                   onClick={() => handleRestoreOrder(order.id)}
@@ -430,13 +443,20 @@ const BreadOrders = () => {
                                 </button>
                               </>
                             ) : (
-                              <button
-                                onClick={() => handleDeleteOrder(order.id)}
-                                className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
-                                title="Move to trash"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-500" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleEditOrder(order)}
+                                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                  <Edit2 className="w-4 h-4 text-gray-500" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -465,15 +485,6 @@ const BreadOrders = () => {
         product={editingProduct}
       />
 
-      <TransactionHistoryModal
-        isOpen={isHistoryModalOpen}
-        onClose={() => {
-          setIsHistoryModalOpen(false)
-          setSelectedOrder(null)
-        }}
-        transaction={selectedOrder}
-      />
-
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => {
@@ -482,10 +493,20 @@ const BreadOrders = () => {
         }}
         onSave={handleRecordPayment}
         customerName={selectedOrder ? 
-          getCustomer(selectedOrder.customerId)?.name || selectedOrder.customerName : ''
+          getCustomer(selectedOrder.customer_id)?.name || selectedOrder.customer_name : ''
         }
-        remainingBalance={selectedOrder?.remainingBalance || 0}
-        suggestedAmount={selectedOrder?.remainingBalance || 0}
+        remainingBalance={selectedOrder?.remaining_balance || 0}
+        suggestedAmount={selectedOrder?.remaining_balance || 0}
+      />
+
+      <TransactionDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => {
+          setIsDetailsModalOpen(false)
+          setSelectedOrder(null)
+        }}
+        transaction={selectedOrder}
+        type="bread-order"
       />
     </div>
   )
