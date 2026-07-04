@@ -68,8 +68,8 @@ export const CashLoanProvider = ({ children }) => {
       const newLoan = {
         id: Date.now(),
         transaction_number: generateLoanNumber(),
-        customer_id: data.customerId,
-        customer_name: data.customerName,
+        customer_id: data.customerId ? parseInt(data.customerId) : null,
+        customer_name: data.customerName || '',
         principal: principal,
         interest_rate: interestRate,
         interest_type: interestType,
@@ -105,6 +105,96 @@ export const CashLoanProvider = ({ children }) => {
       console.error('Error adding loan:', error)
       showNotification('Failed to create loan', 'error')
       return null
+    }
+  }
+
+  const updateLoan = async (id, data) => {
+    try {
+      const { data: updated, error } = await supabase
+        .from('cash_loans')
+        .update({
+          customer_name: data.customerName,
+          principal: data.principal,
+          interest_rate: data.interestRate || 0,
+          interest_type: data.interestType || 'fixed',
+          down_payment: data.downPayment || 0,
+          number_of_payments: data.numberOfPayments || 1,
+          due_date: data.dueDate || null,
+          payment_term: data.paymentTerm || 'months',
+          term_value: data.termValue || 1,
+          description: data.description || '',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+
+      setLoans(prev => prev.map(l => l.id === id ? updated[0] : l))
+      showNotification('Loan updated!', 'success')
+      addLog('Updated', 'Cash Loan', `Updated loan: ${updated[0]?.transaction_number || 'Unknown'}`)
+      return updated[0]
+    } catch (error) {
+      console.error('Error updating loan:', error)
+      showNotification('Failed to update loan', 'error')
+      return null
+    }
+  }
+
+  const deleteLoan = async (id) => {
+    try {
+      const loan = loans.find(l => l.id === id)
+      const { error } = await supabase
+        .from('cash_loans')
+        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setLoans(prev => prev.filter(l => l.id !== id))
+      showNotification('Loan moved to trash', 'warning')
+      addLog('Deleted', 'Cash Loan', `Soft deleted loan: ${loan?.transaction_number || 'Unknown'}`)
+    } catch (error) {
+      console.error('Error deleting loan:', error)
+      showNotification('Failed to delete loan', 'error')
+    }
+  }
+
+  const restoreLoan = async (id) => {
+    try {
+      const loan = loans.find(l => l.id === id)
+      const { error } = await supabase
+        .from('cash_loans')
+        .update({ is_deleted: false, deleted_at: null })
+        .eq('id', id)
+
+      if (error) throw error
+
+      await loadLoans()
+      showNotification('Loan restored!', 'success')
+      addLog('Restored', 'Cash Loan', `Restored loan: ${loan?.transaction_number || 'Unknown'}`)
+    } catch (error) {
+      console.error('Error restoring loan:', error)
+      showNotification('Failed to restore loan', 'error')
+    }
+  }
+
+  const permanentDeleteLoan = async (id) => {
+    try {
+      const loan = loans.find(l => l.id === id)
+      const { error } = await supabase
+        .from('cash_loans')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setLoans(prev => prev.filter(l => l.id !== id))
+      showNotification('Loan permanently deleted', 'error')
+      addLog('Deleted', 'Cash Loan', `Permanently deleted loan: ${loan?.transaction_number || 'Unknown'}`)
+    } catch (error) {
+      console.error('Error permanently deleting loan:', error)
+      showNotification('Failed to permanently delete loan', 'error')
     }
   }
 
@@ -152,11 +242,48 @@ export const CashLoanProvider = ({ children }) => {
     }
   }
 
+  const getTotals = () => {
+    const active = loans
+    const totalPrincipal = active.reduce((sum, l) => sum + (l.principal || 0), 0)
+    const totalInterest = active.reduce((sum, l) => sum + (l.interest_amount || 0), 0)
+    const totalPayable = active.reduce((sum, l) => sum + (l.total_payable || 0), 0)
+    const totalPaid = active.reduce((sum, l) => {
+      const paid = (l.payments || []).reduce((s, p) => s + (p.amount || 0), 0)
+      return sum + paid
+    }, 0)
+    const totalRemaining = active.reduce((sum, l) => sum + (l.remaining_balance || 0), 0)
+    const overdueCount = active.filter(l => l.status === 'overdue').length
+    const completedCount = active.filter(l => l.status === 'completed').length
+    const activeCount = active.filter(l => l.status === 'active').length
+
+    return {
+      totalPrincipal,
+      totalInterest,
+      totalPayable,
+      totalPaid,
+      totalRemaining,
+      overdueCount,
+      completedCount,
+      activeCount,
+      totalLoans: active.length
+    }
+  }
+
+  const getActiveLoans = () => loans.filter(l => !l.is_deleted)
+  const getDeletedLoans = () => loans.filter(l => l.is_deleted)
+
   const value = {
     loans,
     loading,
     addLoan,
+    updateLoan,
+    deleteLoan,
+    restoreLoan,
+    permanentDeleteLoan,
     addPayment,
+    getTotals,
+    getActiveLoans,
+    getDeletedLoans,
     refreshLoans: loadLoans
   }
 
