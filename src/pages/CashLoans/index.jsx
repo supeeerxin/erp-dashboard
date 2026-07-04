@@ -4,7 +4,7 @@ import { useCashLoans } from '../../context/CashLoanContext'
 import { useCustomers } from '../../context/CustomerContext'
 import CashLoanModal from '../../components/modals/CashLoanModal'
 import PaymentModal from '../../components/modals/PaymentModal'
-import TransactionHistoryModal from '../../components/modals/TransactionHistoryModal'
+import TransactionDetailsModal from '../../components/modals/TransactionDetailsModal'
 
 const CashLoans = () => {
   const { 
@@ -24,7 +24,7 @@ const CashLoans = () => {
   const [showTrash, setShowTrash] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [editingLoan, setEditingLoan] = useState(null)
   const [selectedLoan, setSelectedLoan] = useState(null)
 
@@ -32,12 +32,12 @@ const CashLoans = () => {
   const currentList = showTrash ? deletedLoans : loans
 
   const filteredLoans = currentList.filter(l => {
-    const customer = getCustomer(l.customer_id) // Changed from customerId
+    const customer = getCustomer(l.customer_id)
     const search = searchQuery.toLowerCase()
     return customer?.name?.toLowerCase().includes(search) ||
-           l.customer_name?.toLowerCase().includes(search) ||  // Changed from customerName
+           l.customer_name?.toLowerCase().includes(search) ||
            l.description?.toLowerCase().includes(search) ||
-           l.transaction_number?.toLowerCase().includes(search) // Changed from transactionNumber
+           l.transaction_number?.toLowerCase().includes(search)
   })
 
   const getStatusBadge = (status) => {
@@ -52,7 +52,6 @@ const CashLoans = () => {
   }
 
   const handleAddLoan = async (data) => {
-    console.log('📝 Adding loan:', data)
     const result = await addLoan(data)
     if (result) {
       setIsModalOpen(false)
@@ -66,7 +65,6 @@ const CashLoans = () => {
   }
 
   const handleUpdateLoan = async (data) => {
-    console.log('📝 Updating loan:', data)
     const result = await updateLoan(editingLoan.id, data)
     if (result) {
       setEditingLoan(null)
@@ -101,10 +99,9 @@ const CashLoans = () => {
     setIsPaymentModalOpen(false)
   }
 
-  const handleViewHistory = (loan) => {
-    console.log('Viewing history for loan:', loan)
+  const handleViewDetails = (loan) => {
     setSelectedLoan(loan)
-    setIsHistoryModalOpen(true)
+    setIsDetailsModalOpen(true)
   }
 
   const handleCloseModal = () => {
@@ -260,12 +257,9 @@ const CashLoans = () => {
                       <td className="table-cell text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => {
-                              console.log('View button clicked for loan:', loan)
-                              handleViewHistory(loan)
-                            }}
+                            onClick={() => handleViewDetails(loan)}
                             className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
-                            title="View History"
+                            title="View Details"
                           >
                             <Eye className="w-4 h-4 text-blue-500" />
                           </button>
@@ -344,14 +338,14 @@ const CashLoans = () => {
         suggestedAmount={selectedLoan?.payment_per_give || 0}
       />
 
-      <TransactionHistoryModal
-        isOpen={isHistoryModalOpen}
+      <TransactionDetailsModal
+        isOpen={isDetailsModalOpen}
         onClose={() => {
-          console.log('Closing history modal')
-          setIsHistoryModalOpen(false)
+          setIsDetailsModalOpen(false)
           setSelectedLoan(null)
         }}
         transaction={selectedLoan}
+        type="cash-loan"
       />
     </div>
   )
