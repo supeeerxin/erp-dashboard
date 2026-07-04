@@ -20,20 +20,25 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
   })
 
   const [selectedProduct, setSelectedProduct] = useState(null)
+  const [computedValues, setComputedValues] = useState({
+    totalSelling: 0,
+    totalCost: 0,
+    profit: 0
+  })
 
   useEffect(() => {
     if (order) {
-      const product = products.find(p => p.id === order.productId)
+      const product = products.find(p => p.id === order.product_id)
       setSelectedProduct(product || null)
       setFormData({
-        customerId: order.customerId || '',
-        customerName: order.customerName || '',
-        productId: order.productId || '',
-        productName: order.productName || '',
+        customerId: order.customer_id || '',
+        customerName: order.customer_name || '',
+        productId: order.product_id || '',
+        productName: order.product_name || '',
         boxes: order.boxes || '',
         pieces: order.pieces || '',
         status: order.status || 'pending',
-        deliveryDate: order.deliveryDate || '',
+        deliveryDate: order.delivery_date || '',
         notes: order.notes || ''
       })
     } else {
@@ -51,6 +56,27 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
       })
     }
   }, [order, isOpen, products])
+
+  // Auto-compute values when boxes, pieces, or product changes
+  useEffect(() => {
+    const boxes = parseInt(formData.boxes) || 0
+    const pieces = parseInt(formData.pieces) || 0
+    
+    if (selectedProduct) {
+      const sellingPricePerBox = selectedProduct.selling_price_per_box || 0
+      const sellingPricePerPiece = selectedProduct.selling_price_per_piece || 0
+      const costPerBox = selectedProduct.cost_per_box || 0
+      const costPerPiece = selectedProduct.cost_per_piece || 0
+      
+      const totalSelling = (boxes * sellingPricePerBox) + (pieces * sellingPricePerPiece)
+      const totalCost = (boxes * costPerBox) + (pieces * costPerPiece)
+      const profit = totalSelling - totalCost
+      
+      setComputedValues({ totalSelling, totalCost, profit })
+    } else {
+      setComputedValues({ totalSelling: 0, totalCost: 0, profit: 0 })
+    }
+  }, [formData.boxes, formData.pieces, selectedProduct])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -105,19 +131,30 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
 
     const boxes = parseInt(formData.boxes) || 0
     const pieces = parseInt(formData.pieces) || 0
-    const totalAmount = (boxes * (selectedProduct.sellingPricePerBox || 0)) + (pieces * (selectedProduct.sellingPricePerPiece || 0))
+    
+    // Check stock availability
+    if (boxes > (selectedProduct.stock_boxes || 0)) {
+      alert(`Not enough boxes! Available: ${selectedProduct.stock_boxes}`)
+      return
+    }
+    if (pieces > (selectedProduct.stock_pieces || 0)) {
+      alert(`Not enough pieces! Available: ${selectedProduct.stock_pieces}`)
+      return
+    }
 
     onSave({
       ...formData,
       boxes: boxes,
       pieces: pieces,
       productName: selectedProduct.name,
-      sellingPricePerBox: selectedProduct.sellingPricePerBox || 0,
-      sellingPricePerPiece: selectedProduct.sellingPricePerPiece || 0,
-      costPerBox: selectedProduct.costPerBox || 0,
-      costPerPiece: selectedProduct.costPerPiece || 0,
+      sellingPricePerBox: selectedProduct.selling_price_per_box || 0,
+      sellingPricePerPiece: selectedProduct.selling_price_per_piece || 0,
+      costPerBox: selectedProduct.cost_per_box || 0,
+      costPerPiece: selectedProduct.cost_per_piece || 0,
       productId: parseInt(formData.productId),
-      totalAmount: totalAmount
+      totalSellingPrice: computedValues.totalSelling,
+      totalCost: computedValues.totalCost,
+      profit: computedValues.profit
     })
     onClose()
   }
@@ -126,14 +163,7 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
 
   const boxes = parseInt(formData.boxes) || 0
   const pieces = parseInt(formData.pieces) || 0
-  const sellingPricePerBox = selectedProduct?.sellingPricePerBox || 0
-  const sellingPricePerPiece = selectedProduct?.sellingPricePerPiece || 0
-  const costPerBox = selectedProduct?.costPerBox || 0
-  const costPerPiece = selectedProduct?.costPerPiece || 0
-  
-  const totalSelling = (boxes * sellingPricePerBox) + (pieces * sellingPricePerPiece)
-  const totalCost = (boxes * costPerBox) + (pieces * costPerPiece)
-  const profit = totalSelling - totalCost
+  const { totalSelling, totalCost, profit } = computedValues
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -179,9 +209,9 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
               {products.map(product => (
                 <option key={product.id} value={product.id}>
                   {product.name} 
-                  {product.stockBoxes !== undefined && (
+                  {product.stock_boxes !== undefined && (
                     <span className="text-gray-400 text-xs ml-1">
-                      (Stock: {product.stockBoxes || 0} boxes)
+                      (Stock: {product.stock_boxes || 0} boxes)
                     </span>
                   )}
                 </option>
@@ -191,14 +221,14 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
             {selectedProduct && (
               <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
                 <p className="text-gray-600 dark:text-gray-400">
-                  Selling: <span className="font-medium text-primary-500">₱{selectedProduct.sellingPricePerBox?.toFixed(2) || 0}/box</span>
-                  <span className="text-gray-400 ml-1">({selectedProduct.piecesPerBox || 24} pcs)</span>
+                  Selling: <span className="font-medium text-primary-500">₱{(selectedProduct.selling_price_per_box || 0).toFixed(2)}/box</span>
+                  <span className="text-gray-400 ml-1">({selectedProduct.pieces_per_box || 24} pcs)</span>
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Per Piece: <span className="font-medium text-primary-500">₱{selectedProduct.sellingPricePerPiece?.toFixed(2) || 0}</span>
+                  Per Piece: <span className="font-medium text-primary-500">₱{(selectedProduct.selling_price_per_piece || 0).toFixed(2)}</span>
                 </p>
-                <p className={`text-gray-600 dark:text-gray-400 ${(selectedProduct.stockBoxes || 0) <= 5 ? 'text-red-500' : ''}`}>
-                  Available: {selectedProduct.stockBoxes || 0} boxes | {selectedProduct.stockPieces || 0} pieces
+                <p className={`text-gray-600 dark:text-gray-400 ${(selectedProduct.stock_boxes || 0) <= 5 ? 'text-red-500' : ''}`}>
+                  Available: {selectedProduct.stock_boxes || 0} boxes | {selectedProduct.stock_pieces || 0} pieces
                 </p>
               </div>
             )}
@@ -217,6 +247,11 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
                 min="0"
                 step="1"
               />
+              {selectedProduct && selectedProduct.stock_boxes > 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Max: {selectedProduct.stock_boxes} boxes
+                </p>
+              )}
             </div>
             <div>
               <label className="label">Pieces</label>
@@ -230,10 +265,15 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
                 min="0"
                 step="1"
               />
+              {selectedProduct && selectedProduct.stock_pieces > 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Max: {selectedProduct.stock_pieces} pieces
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Total Amount Payable */}
+          {/* Total Amount Payable - AUTO COMPUTED */}
           {selectedProduct && (boxes > 0 || pieces > 0) && (
             <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount Payable</p>
@@ -241,9 +281,9 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
                 ₱{totalSelling.toFixed(2)}
               </p>
               <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                <p>{boxes} boxes × ₱{sellingPricePerBox.toFixed(2)} = ₱{(boxes * sellingPricePerBox).toFixed(2)}</p>
+                <p>{boxes} boxes × ₱{(selectedProduct?.selling_price_per_box || 0).toFixed(2)} = ₱{(boxes * (selectedProduct?.selling_price_per_box || 0)).toFixed(2)}</p>
                 {pieces > 0 && (
-                  <p>{pieces} pieces × ₱{sellingPricePerPiece.toFixed(2)} = ₱{(pieces * sellingPricePerPiece).toFixed(2)}</p>
+                  <p>{pieces} pieces × ₱{(selectedProduct?.selling_price_per_piece || 0).toFixed(2)} = ₱{(pieces * (selectedProduct?.selling_price_per_piece || 0)).toFixed(2)}</p>
                 )}
               </div>
             </div>
