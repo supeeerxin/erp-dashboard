@@ -6,7 +6,6 @@ import CashLoanModal from '../../components/modals/CashLoanModal'
 import PaymentModal from '../../components/modals/PaymentModal'
 import TransactionHistoryModal from '../../components/modals/TransactionHistoryModal'
 
-
 const CashLoans = () => {
   const { 
     loans, 
@@ -33,12 +32,12 @@ const CashLoans = () => {
   const currentList = showTrash ? deletedLoans : loans
 
   const filteredLoans = currentList.filter(l => {
-    const customer = getCustomer(l.customerId)
+    const customer = getCustomer(l.customer_id) // Changed from customerId
     const search = searchQuery.toLowerCase()
     return customer?.name?.toLowerCase().includes(search) ||
-           l.customerName?.toLowerCase().includes(search) ||
+           l.customer_name?.toLowerCase().includes(search) ||  // Changed from customerName
            l.description?.toLowerCase().includes(search) ||
-           l.transactionNumber?.toLowerCase().includes(search)
+           l.transaction_number?.toLowerCase().includes(search) // Changed from transactionNumber
   })
 
   const getStatusBadge = (status) => {
@@ -115,7 +114,7 @@ const CashLoans = () => {
 
   const getTotalPayments = (loan) => {
     const payments = loan.payments || []
-    return payments.reduce((sum, p) => sum + p.amount, 0)
+    return payments.reduce((sum, p) => sum + (p.amount || 0), 0)
   }
 
   return (
@@ -153,25 +152,25 @@ const CashLoans = () => {
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Principal</p>
           <p className="text-lg font-bold text-gray-900 dark:text-white">
-            ₱{totals.totalPrincipal.toLocaleString()}
+            ₱{(totals.totalPrincipal || 0).toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Interest</p>
           <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-            ₱{totals.totalInterest.toLocaleString()}
+            ₱{(totals.totalInterest || 0).toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Payable</p>
           <p className="text-lg font-bold text-primary-500">
-            ₱{totals.totalPayable.toLocaleString()}
+            ₱{(totals.totalPayable || 0).toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Remaining Balance</p>
           <p className="text-lg font-bold text-gray-900 dark:text-white">
-            ₱{totals.totalRemaining.toLocaleString()}
+            ₱{(totals.totalRemaining || 0).toLocaleString()}
           </p>
         </div>
       </div>
@@ -225,36 +224,36 @@ const CashLoans = () => {
               </thead>
               <tbody>
                 {filteredLoans.map((loan) => {
-                  const customer = getCustomer(loan.customerId)
+                  const customer = getCustomer(loan.customer_id)
                   const totalPaid = getTotalPayments(loan)
-                  const isPaid = loan.status === 'completed' || loan.remainingBalance === 0
+                  const isPaid = loan.status === 'completed' || loan.remaining_balance === 0
                   
                   return (
                     <tr key={loan.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                       <td className="table-cell font-mono text-xs text-gray-600 dark:text-gray-400">
-                        {loan.transactionNumber || `LOAN-${loan.id.toString().slice(-6)}`}
+                        {loan.transaction_number || `LOAN-${loan.id.toString().slice(-6)}`}
                       </td>
                       <td className="table-cell font-medium">
-                        {customer?.name || loan.customerName || 'Unknown'}
+                        {customer?.name || loan.customer_name || 'Unknown'}
                       </td>
                       <td className="table-cell text-right">
-                        ₱{loan.principal.toLocaleString()}
+                        ₱{(loan.principal || 0).toLocaleString()}
                       </td>
                       <td className="table-cell text-right text-yellow-600 dark:text-yellow-400">
-                        ₱{loan.interestAmount.toLocaleString()}
+                        ₱{(loan.interest_amount || 0).toLocaleString()}
                       </td>
                       <td className="table-cell text-right font-medium text-primary-500">
-                        ₱{loan.totalPayable.toLocaleString()}
+                        ₱{(loan.total_payable || 0).toLocaleString()}
                       </td>
                       <td className="table-cell text-right text-green-600 dark:text-green-400">
-                        ₱{totalPaid.toLocaleString()}
+                        ₱{(totalPaid || 0).toLocaleString()}
                       </td>
                       <td className="table-cell text-right font-medium text-gray-900 dark:text-white">
-                        ₱{loan.remainingBalance.toLocaleString()}
+                        ₱{(loan.remaining_balance || 0).toLocaleString()}
                       </td>
                       <td className="table-cell">
                         {getStatusBadge(loan.status)}
-                        {loan.isDeleted && (
+                        {loan.is_deleted && (
                           <span className="badge badge-danger ml-1">Deleted</span>
                         )}
                       </td>
@@ -270,7 +269,7 @@ const CashLoans = () => {
                           >
                             <Eye className="w-4 h-4 text-blue-500" />
                           </button>
-                          {!loan.isDeleted && !isPaid && (
+                          {!loan.is_deleted && !isPaid && (
                             <button
                               onClick={() => handlePayment(loan)}
                               className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
@@ -279,7 +278,7 @@ const CashLoans = () => {
                               <DollarSign className="w-4 h-4 text-green-500" />
                             </button>
                           )}
-                          {loan.isDeleted ? (
+                          {loan.is_deleted ? (
                             <>
                               <button
                                 onClick={() => handleRestoreLoan(loan.id)}
@@ -339,10 +338,10 @@ const CashLoans = () => {
         }}
         onSave={handleRecordPayment}
         customerName={selectedLoan ? 
-          getCustomer(selectedLoan.customerId)?.name || selectedLoan.customerName : ''
+          getCustomer(selectedLoan.customer_id)?.name || selectedLoan.customer_name : ''
         }
-        remainingBalance={selectedLoan?.remainingBalance || 0}
-        suggestedAmount={selectedLoan?.paymentPerGive || 0}
+        remainingBalance={selectedLoan?.remaining_balance || 0}
+        suggestedAmount={selectedLoan?.payment_per_give || 0}
       />
 
       <TransactionHistoryModal
