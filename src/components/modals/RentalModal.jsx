@@ -22,6 +22,7 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
   })
 
   const [availableVehicles, setAvailableVehicles] = useState([])
+  const [errors, setErrors] = useState({})
 
   // Check if a vehicle is available for the selected date range
   const isVehicleAvailable = (vehicleId, startDate, endDate) => {
@@ -54,7 +55,7 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
   // Get available vehicles based on selected dates
   const getAvailableVehicles = () => {
     const { start_date, end_date } = formData
-    if (!start_date || !end_date) return vehicles
+    if (!start_date || !end_date) return vehicles.filter(v => v.status !== 'maintenance')
     
     return vehicles.filter(vehicle => {
       // Only show available vehicles (not maintenance)
@@ -94,6 +95,7 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
         notes: ''
       })
     }
+    setErrors({})
   }, [rental, isOpen])
 
   // Update available vehicles when dates change
@@ -108,6 +110,10 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+    // Clear error for this field
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }))
+    }
   }
 
   const handleVehicleSelect = (e) => {
@@ -135,27 +141,45 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
     }
   }
 
+  const validateForm = () => {
+    const newErrors = {}
+    
+    if (!formData.vehicle_id) {
+      newErrors.vehicle_id = 'Please select a vehicle'
+    }
+    if (!formData.driver_id) {
+      newErrors.driver_id = 'Please select a driver'
+    }
+    if (!formData.start_date) {
+      newErrors.start_date = 'Please select start date'
+    }
+    if (!formData.end_date) {
+      newErrors.end_date = 'Please select end date'
+    }
+    
+    if (formData.start_date && formData.end_date) {
+      const start = new Date(formData.start_date)
+      const end = new Date(formData.end_date)
+      if (end < start) {
+        newErrors.end_date = 'End date must be after start date'
+      }
+    }
+
+    // Check if vehicle is available
+    if (formData.vehicle_id && formData.start_date && formData.end_date) {
+      if (!isVehicleAvailable(formData.vehicle_id, formData.start_date, formData.end_date)) {
+        newErrors.vehicle_id = 'This vehicle is already booked for the selected dates'
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     
-    // Check required fields
-    if (!formData.vehicle_id || !formData.driver_id || !formData.start_date || !formData.end_date) {
-      alert('Please fill in all required fields')
-      return
-    }
-
-    // Validate dates - end date must be after start date
-    const start = new Date(formData.start_date)
-    const end = new Date(formData.end_date)
-    
-    if (end < start) {
-      alert('End date must be after start date')
-      return
-    }
-
-    // Check if vehicle is available for the selected dates
-    if (!isVehicleAvailable(formData.vehicle_id, formData.start_date, formData.end_date)) {
-      alert('This vehicle is already booked for the selected dates. Please choose another vehicle or different dates.')
+    if (!validateForm()) {
       return
     }
 
@@ -176,13 +200,10 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
   let totalDays = 0
   let totalAmount = 0
 
-  if (startDate && endDate) {
-    // Only calculate if end date is after start date
-    if (endDate >= startDate) {
-      const diffTime = Math.abs(endDate - startDate)
-      totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-      totalAmount = totalDays * (parseFloat(formData.daily_boundary) || 0)
-    }
+  if (startDate && endDate && endDate >= startDate) {
+    const diffTime = Math.abs(endDate - startDate)
+    totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+    totalAmount = totalDays * (parseFloat(formData.daily_boundary) || 0)
   }
 
   // Get available vehicles for display
@@ -191,7 +212,7 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
             {rental ? 'Edit Rental' : 'New Rental'}
           </h3>
@@ -209,9 +230,12 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
                 name="start_date"
                 value={formData.start_date}
                 onChange={handleChange}
-                className="input-field"
+                className={`input-field ${errors.start_date ? 'border-red-500' : ''}`}
                 required
               />
+              {errors.start_date && (
+                <p className="text-xs text-red-500 mt-1">{errors.start_date}</p>
+              )}
             </div>
             <div>
               <label className="label">End Date *</label>
@@ -220,9 +244,12 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
                 name="end_date"
                 value={formData.end_date}
                 onChange={handleChange}
-                className="input-field"
+                className={`input-field ${errors.end_date ? 'border-red-500' : ''}`}
                 required
               />
+              {errors.end_date && (
+                <p className="text-xs text-red-500 mt-1">{errors.end_date}</p>
+              )}
             </div>
           </div>
 
@@ -232,7 +259,7 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
               name="vehicle_id"
               value={formData.vehicle_id}
               onChange={handleVehicleSelect}
-              className="input-field"
+              className={`input-field ${errors.vehicle_id ? 'border-red-500' : ''}`}
               required
             >
               <option value="">Select Vehicle</option>
@@ -246,6 +273,9 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
                 )
               })}
             </select>
+            {errors.vehicle_id && (
+              <p className="text-xs text-red-500 mt-1">{errors.vehicle_id}</p>
+            )}
             {displayVehicles.length === 0 && (
               <p className="text-xs text-red-500 mt-1">No vehicles available for the selected dates</p>
             )}
@@ -257,7 +287,7 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
               name="driver_id"
               value={formData.driver_id}
               onChange={handleDriverSelect}
-              className="input-field"
+              className={`input-field ${errors.driver_id ? 'border-red-500' : ''}`}
               required
             >
               <option value="">Select Driver</option>
@@ -267,6 +297,9 @@ const RentalModal = ({ isOpen, onClose, onSave, rental }) => {
                 </option>
               ))}
             </select>
+            {errors.driver_id && (
+              <p className="text-xs text-red-500 mt-1">{errors.driver_id}</p>
+            )}
             {drivers.length === 0 && (
               <p className="text-xs text-red-500 mt-1">No drivers available. Please add a driver first.</p>
             )}
