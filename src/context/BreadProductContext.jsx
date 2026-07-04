@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNotification } from './NotificationContext'
+import { useAudit } from './AuditContext'
+import { supabase } from '../services/supabase'
 
 const BreadProductContext = createContext()
 
@@ -15,147 +17,179 @@ export const BreadProductProvider = ({ children }) => {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const { showNotification } = useNotification()
+  const { addLog } = useAudit()
 
-  const defaultProducts = [
-    { 
-      id: 1, 
-      name: 'Pandesal', 
-      sellingPricePerBox: 250, 
-      piecesPerBox: 24, 
-      sellingPricePerPiece: 10.42,
-      costPerBox: 180,
-      costPerPiece: 7.50,
-      stockBoxes: 20,
-      stockPieces: 0
-    },
-    { 
-      id: 2, 
-      name: 'Monay', 
-      sellingPricePerBox: 300, 
-      piecesPerBox: 24, 
-      sellingPricePerPiece: 12.50,
-      costPerBox: 220,
-      costPerPiece: 9.17,
-      stockBoxes: 15,
-      stockPieces: 0
-    },
-    { 
-      id: 3, 
-      name: 'Ensaymada', 
-      sellingPricePerBox: 400, 
-      piecesPerBox: 20, 
-      sellingPricePerPiece: 20.00,
-      costPerBox: 300,
-      costPerPiece: 15.00,
-      stockBoxes: 10,
-      stockPieces: 0
-    },
-    { 
-      id: 4, 
-      name: 'Pan de Coco', 
-      sellingPricePerBox: 350, 
-      piecesPerBox: 24, 
-      sellingPricePerPiece: 14.58,
-      costPerBox: 260,
-      costPerPiece: 10.83,
-      stockBoxes: 12,
-      stockPieces: 0
-    },
-    { 
-      id: 5, 
-      name: 'Spanish Bread', 
-      sellingPricePerBox: 380, 
-      piecesPerBox: 20, 
-      sellingPricePerPiece: 19.00,
-      costPerBox: 280,
-      costPerPiece: 14.00,
-      stockBoxes: 10,
-      stockPieces: 0
-    },
-  ]
+  const loadProducts = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('bread_products')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setProducts(data || [])
+    } catch (error) {
+      console.error('Error loading products:', error)
+      showNotification('Failed to load products', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const saved = localStorage.getItem('breadProducts')
-    if (saved) {
-      setProducts(JSON.parse(saved))
-    } else {
-      setProducts(defaultProducts)
-      localStorage.setItem('breadProducts', JSON.stringify(defaultProducts))
-    }
-    setLoading(false)
+    loadProducts()
   }, [])
 
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('breadProducts', JSON.stringify(products))
-    }
-  }, [products, loading])
+  const addProduct = async (data) => {
+    try {
+      const newProduct = {
+        id: Date.now(),
+        name: data.name,
+        selling_price_per_box: data.sellingPricePerBox || 0,
+        selling_price_per_piece: data.sellingPricePerPiece || 0,
+        cost_per_box: data.costPerBox || 0,
+        cost_per_piece: data.costPerPiece || 0,
+        pieces_per_box: data.piecesPerBox || 24,
+        stock_boxes: data.stockBoxes || 0,
+        stock_pieces: data.stockPieces || 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
 
-  const addProduct = (data) => {
-    const newProduct = {
-      id: Date.now(),
-      ...data,
-      stockBoxes: data.stockBoxes || 0,
-      stockPieces: data.stockPieces || 0,
-      createdAt: new Date().toISOString()
+      const { data: inserted, error } = await supabase
+        .from('bread_products')
+        .insert([newProduct])
+        .select()
+
+      if (error) throw error
+
+      setProducts(prev => [inserted[0], ...prev])
+      showNotification('Product added!', 'success')
+      addLog('Created', 'Bread Product', `Added product: ${data.name}`)
+      return inserted[0]
+    } catch (error) {
+      console.error('Error adding product:', error)
+      showNotification('Failed to add product', 'error')
+      return null
     }
-    setProducts(prev => [...prev, newProduct])
-    showNotification('Product added!', 'success')
-    return newProduct
   }
 
-  const updateProduct = (id, data) => {
-    setProducts(prev => prev.map(product =>
-      product.id === id
-        ? { ...product, ...data }
-        : product
-    ))
-    showNotification('Product updated!', 'success')
+  const updateProduct = async (id, data) => {
+    try {
+      const { data: updated, error } = await supabase
+        .from('bread_products')
+        .update({
+          name: data.name,
+          selling_price_per_box: data.sellingPricePerBox || 0,
+          selling_price_per_piece: data.sellingPricePerPiece || 0,
+          cost_per_box: data.costPerBox || 0,
+          cost_per_piece: data.costPerPiece || 0,
+          pieces_per_box: data.piecesPerBox || 24,
+          stock_boxes: data.stockBoxes || 0,
+          stock_pieces: data.stockPieces || 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+
+      setProducts(prev => prev.map(p => p.id === id ? updated[0] : p))
+      showNotification('Product updated!', 'success')
+      addLog('Updated', 'Bread Product', `Updated product: ${data.name}`)
+    } catch (error) {
+      console.error('Error updating product:', error)
+      showNotification('Failed to update product', 'error')
+    }
   }
 
-  const deleteProduct = (id) => {
-    setProducts(prev => prev.filter(product => product.id !== id))
-    showNotification('Product deleted!', 'success')
+  const deleteProduct = async (id) => {
+    try {
+      const product = products.find(p => p.id === id)
+      const { error } = await supabase
+        .from('bread_products')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setProducts(prev => prev.filter(p => p.id !== id))
+      showNotification('Product deleted!', 'success')
+      addLog('Deleted', 'Bread Product', `Deleted product: ${product?.name || 'Unknown'}`)
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      showNotification('Failed to delete product', 'error')
+    }
   }
 
   const getProduct = (id) => {
     return products.find(product => product.id === id)
   }
 
-  const deductInventory = (productId, boxes, pieces) => {
-    setProducts(prev => prev.map(product => {
-      if (product.id === productId) {
-        const newStockBoxes = Math.max(0, (product.stockBoxes || 0) - (boxes || 0))
-        const newStockPieces = Math.max(0, (product.stockPieces || 0) - (pieces || 0))
-        
-        if (newStockBoxes <= 5 && newStockBoxes > 0) {
-          showNotification(`Low stock: ${product.name} - only ${newStockBoxes} boxes left!`, 'warning')
-        }
-        if (newStockBoxes === 0 && (boxes || 0) > 0) {
-          showNotification(`${product.name} is now out of stock!`, 'error')
-        }
-        
-        return {
-          ...product,
-          stockBoxes: newStockBoxes,
-          stockPieces: newStockPieces
-        }
+  const deductInventory = async (productId, boxes, pieces) => {
+    try {
+      const product = products.find(p => p.id === productId)
+      if (!product) return
+
+      const newStockBoxes = Math.max(0, (product.stock_boxes || 0) - (boxes || 0))
+      const newStockPieces = Math.max(0, (product.stock_pieces || 0) - (pieces || 0))
+
+      const { error } = await supabase
+        .from('bread_products')
+        .update({
+          stock_boxes: newStockBoxes,
+          stock_pieces: newStockPieces,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', productId)
+
+      if (error) throw error
+
+      setProducts(prev => prev.map(p => 
+        p.id === productId 
+          ? { ...p, stock_boxes: newStockBoxes, stock_pieces: newStockPieces }
+          : p
+      ))
+
+      if (newStockBoxes <= 5 && newStockBoxes > 0) {
+        showNotification(`Low stock: ${product.name} - only ${newStockBoxes} boxes left!`, 'warning')
       }
-      return product
-    }))
+      if (newStockBoxes === 0 && (boxes || 0) > 0) {
+        showNotification(`${product.name} is now out of stock!`, 'error')
+      }
+    } catch (error) {
+      console.error('Error deducting inventory:', error)
+    }
   }
 
-  const restoreInventory = (productId, boxes, pieces) => {
-    setProducts(prev => prev.map(product => {
-      if (product.id === productId) {
-        return {
-          ...product,
-          stockBoxes: (product.stockBoxes || 0) + (boxes || 0),
-          stockPieces: (product.stockPieces || 0) + (pieces || 0)
-        }
-      }
-      return product
-    }))
+  const restoreInventory = async (productId, boxes, pieces) => {
+    try {
+      const product = products.find(p => p.id === productId)
+      if (!product) return
+
+      const newStockBoxes = (product.stock_boxes || 0) + (boxes || 0)
+      const newStockPieces = (product.stock_pieces || 0) + (pieces || 0)
+
+      const { error } = await supabase
+        .from('bread_products')
+        .update({
+          stock_boxes: newStockBoxes,
+          stock_pieces: newStockPieces,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', productId)
+
+      if (error) throw error
+
+      setProducts(prev => prev.map(p => 
+        p.id === productId 
+          ? { ...p, stock_boxes: newStockBoxes, stock_pieces: newStockPieces }
+          : p
+      ))
+    } catch (error) {
+      console.error('Error restoring inventory:', error)
+    }
   }
 
   const value = {
@@ -166,7 +200,8 @@ export const BreadProductProvider = ({ children }) => {
     deleteProduct,
     getProduct,
     deductInventory,
-    restoreInventory
+    restoreInventory,
+    refreshProducts: loadProducts
   }
 
   return (
