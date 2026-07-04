@@ -14,7 +14,8 @@ import {
   ChevronRight, 
   List,
   Car,
-  Filter
+  Filter,
+  Eye
 } from 'lucide-react'
 import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useCashLoans } from '../../context/CashLoanContext'
@@ -22,7 +23,7 @@ import { usePayables } from '../../context/PayableContext'
 import { useBreadOrders } from '../../context/BreadOrderContext'
 import { useRentals } from '../../context/RentalContext'
 import { useCustomers } from '../../context/CustomerContext'
-import { format, parseISO, isToday, isTomorrow, isAfter, isBefore, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWithinInterval } from 'date-fns'
+import { format, parseISO, isToday, isTomorrow, isAfter, isBefore, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 
 const DueDates = () => {
@@ -40,21 +41,21 @@ const DueDates = () => {
   const { rentals } = useRentals()
   const { getCustomer } = useCustomers()
 
-  // Get all due items
+  // Get all due items - Fixed to use snake_case from Supabase
   const dueItems = useMemo(() => {
     const items = []
 
-    // Rice Credit due dates
+    // Rice Credit due dates - using snake_case
     riceCredits?.forEach(t => {
-      if (!t.isDeleted && t.status !== 'completed' && t.dueDate) {
-        const dueDate = parseISO(t.dueDate)
-        const customer = getCustomer(t.customerId)
+      if (!t.is_deleted && t.status !== 'completed' && t.due_date) {
+        const dueDate = parseISO(t.due_date)
+        const customer = getCustomer(t.customer_id)
         items.push({
           id: `rice-${t.id}`,
           type: 'rice-credit',
           title: 'Rice Credit Payment',
-          customer: customer?.name || t.customerName || 'Unknown',
-          amount: t.remainingBalance || 0,
+          customer: customer?.name || t.customer_name || 'Unknown',
+          amount: t.remaining_balance || 0,
           dueDate: dueDate,
           status: t.status || 'active',
           original: t,
@@ -67,17 +68,17 @@ const DueDates = () => {
       }
     })
 
-    // Cash Loan due dates
+    // Cash Loan due dates - using snake_case
     cashLoans?.forEach(l => {
-      if (!l.isDeleted && l.status !== 'completed' && l.dueDate) {
-        const dueDate = parseISO(l.dueDate)
-        const customer = getCustomer(l.customerId)
+      if (!l.is_deleted && l.status !== 'completed' && l.due_date) {
+        const dueDate = parseISO(l.due_date)
+        const customer = getCustomer(l.customer_id)
         items.push({
           id: `loan-${l.id}`,
           type: 'cash-loan',
           title: 'Cash Loan Payment',
-          customer: customer?.name || l.customerName || 'Unknown',
-          amount: l.remainingBalance || 0,
+          customer: customer?.name || l.customer_name || 'Unknown',
+          amount: l.remaining_balance || 0,
           dueDate: dueDate,
           status: l.status || 'active',
           original: l,
@@ -92,8 +93,8 @@ const DueDates = () => {
 
     // Payables due dates
     payables?.forEach(p => {
-      if (!p.isDeleted && p.status !== 'paid' && p.dueDate) {
-        const dueDate = parseISO(p.dueDate)
+      if (!p.is_deleted && p.status !== 'paid' && p.due_date) {
+        const dueDate = parseISO(p.due_date)
         items.push({
           id: `payable-${p.id}`,
           type: 'payable',
@@ -112,17 +113,17 @@ const DueDates = () => {
       }
     })
 
-    // Bread Order delivery dates
+    // Bread Order delivery dates - using snake_case
     breadOrders?.forEach(o => {
-      if (!o.isDeleted && o.status !== 'completed' && o.deliveryDate) {
-        const dueDate = parseISO(o.deliveryDate)
-        const customer = getCustomer(o.customerId)
+      if (!o.is_deleted && o.status !== 'completed' && o.delivery_date) {
+        const dueDate = parseISO(o.delivery_date)
+        const customer = getCustomer(o.customer_id)
         items.push({
           id: `order-${o.id}`,
           type: 'bread-order',
           title: 'Bread Order Delivery',
-          customer: customer?.name || o.customerName || 'Unknown',
-          amount: o.totalSellingPrice || 0,
+          customer: customer?.name || o.customer_name || 'Unknown',
+          amount: o.total_selling_price || 0,
           dueDate: dueDate,
           status: o.status || 'pending',
           original: o,
@@ -135,11 +136,10 @@ const DueDates = () => {
       }
     })
 
-    // Rental due dates (end dates)
+    // Rental due dates (end dates) - using snake_case
     rentals?.forEach(r => {
-      if (!r.isDeleted && r.status !== 'completed' && r.status !== 'cancelled' && r.end_date) {
+      if (!r.is_deleted && r.status !== 'completed' && r.status !== 'cancelled' && r.end_date) {
         const dueDate = parseISO(r.end_date)
-        const vehicle = r.vehicle_plate || 'Vehicle'
         items.push({
           id: `rental-${r.id}`,
           type: 'rental',
@@ -150,15 +150,15 @@ const DueDates = () => {
           status: r.status || 'active',
           original: r,
           icon: Car,
-          color: 'text-pink-500',
-          bgColor: 'bg-pink-50 dark:bg-pink-900/20',
-          borderColor: 'border-pink-200 dark:border-pink-800',
+          color: 'text-purple-500',
+          bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+          borderColor: 'border-purple-200 dark:border-purple-800',
           route: '/car-rental'
         })
       }
     })
 
-    // Sort by due date
+    // Sort by due date (earliest first)
     items.sort((a, b) => a.dueDate - b.dueDate)
     return items
   }, [riceCredits, cashLoans, payables, breadOrders, rentals, getCustomer])
@@ -191,7 +191,7 @@ const DueDates = () => {
   const overdueItems = useMemo(() => {
     const today = new Date()
     return dueItems.filter(item => 
-      isBefore(item.dueDate, today) && item.status !== 'completed'
+      isBefore(item.dueDate, today) && item.status !== 'completed' && item.status !== 'paid'
     )
   }, [dueItems])
 
@@ -268,6 +268,28 @@ const DueDates = () => {
     return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
   }
 
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'rice-credit': return <Package className="w-3 h-3" />
+      case 'cash-loan': return <DollarSign className="w-3 h-3" />
+      case 'payable': return <CreditCard className="w-3 h-3" />
+      case 'bread-order': return <ShoppingBag className="w-3 h-3" />
+      case 'rental': return <Car className="w-3 h-3" />
+      default: return <Clock className="w-3 h-3" />
+    }
+  }
+
+  const getTypeLabel = (type) => {
+    switch (type) {
+      case 'rice-credit': return 'Rice Credit'
+      case 'cash-loan': return 'Cash Loan'
+      case 'payable': return 'Bill'
+      case 'bread-order': return 'Bread Order'
+      case 'rental': return 'Rental'
+      default: return type
+    }
+  }
+
   const filterOptions = [
     { id: 'all', label: 'All', icon: Filter },
     { id: 'rice-credit', label: 'Rice Credit', icon: Package },
@@ -276,6 +298,19 @@ const DueDates = () => {
     { id: 'bread-order', label: 'Orders', icon: ShoppingBag },
     { id: 'rental', label: 'Rentals', icon: Car },
   ]
+
+  // Get module counts
+  const moduleCounts = useMemo(() => {
+    const counts = {}
+    filterOptions.forEach(opt => {
+      if (opt.id === 'all') {
+        counts.all = dueItems.length
+      } else {
+        counts[opt.id] = dueItems.filter(item => item.type === opt.id).length
+      }
+    })
+    return counts
+  }, [dueItems])
 
   return (
     <div className="space-y-6">
@@ -308,28 +343,28 @@ const DueDates = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="card p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+        <div className="card p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 cursor-pointer hover:shadow-md transition-all" onClick={() => setFilterType('all')}>
           <div className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
             <p className="text-sm text-gray-600 dark:text-gray-400">Overdue</p>
           </div>
           <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">{overdueItems.length}</p>
         </div>
-        <div className="card p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+        <div className="card p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 cursor-pointer hover:shadow-md transition-all" onClick={() => setFilterType('all')}>
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             <p className="text-sm text-gray-600 dark:text-gray-400">Due Today</p>
           </div>
           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">{todayItems.length}</p>
         </div>
-        <div className="card p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+        <div className="card p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 cursor-pointer hover:shadow-md transition-all" onClick={() => setFilterType('all')}>
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
             <p className="text-sm text-gray-600 dark:text-gray-400">Upcoming (7 days)</p>
           </div>
           <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">{upcomingItems.length}</p>
         </div>
-        <div className="card p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+        <div className="card p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 cursor-pointer hover:shadow-md transition-all" onClick={() => setFilterType('all')}>
           <div className="flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
             <p className="text-sm text-gray-600 dark:text-gray-400">Total Items</p>
@@ -338,26 +373,28 @@ const DueDates = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="card">
-        <div className="flex flex-wrap gap-2">
-          {filterOptions.map((option) => {
-            const Icon = option.icon
-            const isActive = filterType === option.id
-            return (
-              <button
-                key={option.id}
-                onClick={() => setFilterType(option.id)}
-                className={`btn-secondary text-sm px-3 py-1 flex items-center gap-1 ${
-                  isActive ? 'bg-primary-500 text-white hover:bg-primary-600' : ''
-                }`}
-              >
-                <Icon className="w-3 h-3" />
-                {option.label}
-              </button>
-            )
-          })}
-        </div>
+      {/* Module Counts - Quick Filter */}
+      <div className="flex flex-wrap gap-2">
+        {filterOptions.map((option) => {
+          const Icon = option.icon
+          const isActive = filterType === option.id
+          const count = moduleCounts[option.id] || 0
+          return (
+            <button
+              key={option.id}
+              onClick={() => setFilterType(option.id)}
+              className={`btn-secondary text-sm px-3 py-1.5 flex items-center gap-1.5 rounded-full transition-all ${
+                isActive ? 'bg-primary-500 text-white hover:bg-primary-600' : ''
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {option.label}
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20' : 'bg-gray-200 dark:bg-gray-600'}`}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* List View */}
@@ -385,6 +422,8 @@ const DueDates = () => {
                 const Icon = item.icon
                 const dueStatus = getDueStatus(item.dueDate)
                 const daysUntil = getDaysUntil(item.dueDate)
+                const typeLabel = getTypeLabel(item.type)
+                const typeIcon = getTypeIcon(item.type)
                 
                 return (
                   <div
@@ -393,34 +432,41 @@ const DueDates = () => {
                     className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${item.borderColor} ${item.bgColor}`}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3 flex-1">
                         <div className={`p-2 rounded-lg ${item.bgColor}`}>
                           <Icon className={`w-5 h-5 ${item.color}`} />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-semibold text-gray-900 dark:text-white">{item.title}</h4>
-                            <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{item.type.replace('-', ' ')}</span>
-                          </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {item.customer}
-                          </p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">
-                              ₱{item.amount.toLocaleString()}
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center gap-1">
+                              {typeIcon}
+                              {typeLabel}
                             </span>
-                            <span className={`text-xs font-medium ${dueStatus === 'overdue' ? 'text-red-500' : dueStatus === 'today' ? 'text-blue-500' : 'text-yellow-500'}`}>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                              dueStatus === 'overdue' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                              dueStatus === 'today' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                              'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                            }`}>
                               {daysUntil}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            👤 {item.customer}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white">
+                              ₱{item.amount.toLocaleString()}
                             </span>
                             {getStatusBadge(item.status)}
                           </div>
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                            Due: {format(item.dueDate, 'MMM dd, yyyy')}
+                            📅 Due: {format(item.dueDate, 'EEEE, MMMM dd, yyyy')}
                           </p>
                         </div>
                       </div>
-                      <button className="text-xs text-primary-500 hover:text-primary-600 font-medium">
-                        View →
+                      <button className="text-xs text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1">
+                        View <Eye className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
@@ -494,6 +540,7 @@ const DueDates = () => {
                         <div key={idx} className="flex items-center gap-0.5 text-[10px] truncate">
                           <Icon className="w-2.5 h-2.5 flex-shrink-0" />
                           <span className="truncate">{item.customer}</span>
+                          <span className="text-[8px] text-gray-400">({getTypeLabel(item.type)})</span>
                         </div>
                       )
                     })}
@@ -508,14 +555,35 @@ const DueDates = () => {
             })}
           </div>
 
+          {/* Legend */}
+          <div className="flex flex-wrap gap-4 text-sm mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-500"></div>
+              <span className="text-gray-600 dark:text-gray-400">Has Due Date</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-red-100 dark:bg-red-900/30 border border-red-500"></div>
+              <span className="text-gray-600 dark:text-gray-400">Overdue</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-500"></div>
+              <span className="text-gray-600 dark:text-gray-400">Due Today</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-primary-50 dark:bg-primary-900/20 border border-primary-500"></div>
+              <span className="text-gray-600 dark:text-gray-400">Selected</span>
+            </div>
+          </div>
+
           {/* Selected Date Details */}
           {selectedDate && (
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                Items for {format(selectedDate, 'MMMM dd, yyyy')}
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Items for {format(selectedDate, 'EEEE, MMMM dd, yyyy')}
               </h4>
               {getDayItems(selectedDate).length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">No items on this date</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">✅ No items due on this date</p>
               ) : (
                 <div className="space-y-2">
                   {getDayItems(selectedDate).map((item) => {
@@ -524,17 +592,19 @@ const DueDates = () => {
                       <div
                         key={item.id}
                         onClick={() => handleItemClick(item)}
-                        className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                        className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-all"
                       >
                         <div className="flex items-center gap-3">
                           <Icon className={`w-4 h-4 ${item.color}`} />
                           <div>
                             <p className="text-sm font-medium text-gray-900 dark:text-white">{item.title}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{item.customer}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              👤 {item.customer} · {getTypeLabel(item.type)}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">₱{item.amount.toLocaleString()}</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">₱{item.amount.toLocaleString()}</p>
                           {getStatusBadge(item.status)}
                         </div>
                       </div>
@@ -546,7 +616,7 @@ const DueDates = () => {
                 onClick={() => setSelectedDate(null)}
                 className="mt-3 text-sm text-primary-500 hover:text-primary-600 font-medium"
               >
-                Clear filter
+                ✕ Clear filter
               </button>
             </div>
           )}
