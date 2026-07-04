@@ -61,8 +61,8 @@ export const RiceCreditProvider = ({ children }) => {
       const newTransaction = {
         id: Date.now(),
         transaction_number: generateRiceCreditNumber(),
-        customer_id: data.customerId,
-        customer_name: data.customerName,
+        customer_id: data.customerId ? parseInt(data.customerId) : null,
+        customer_name: data.customerName || '',
         amount: totalAmount,
         cost: data.cost || 0,
         down_payment: downPayment,
@@ -73,6 +73,7 @@ export const RiceCreditProvider = ({ children }) => {
         due_date: data.dueDate || null,
         profit: totalAmount - (data.cost || 0),
         payments: initialPayments,
+        description: data.description || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         is_deleted: false
@@ -93,6 +94,93 @@ export const RiceCreditProvider = ({ children }) => {
       console.error('Error adding transaction:', error)
       showNotification('Failed to add transaction', 'error')
       return null
+    }
+  }
+
+  const updateTransaction = async (id, data) => {
+    try {
+      const { data: updated, error } = await supabase
+        .from('rice_credit')
+        .update({
+          customer_name: data.customerName,
+          amount: data.amount,
+          cost: data.cost || 0,
+          down_payment: data.downPayment || 0,
+          number_of_payments: data.numberOfPayments || 1,
+          due_date: data.dueDate || null,
+          description: data.description || '',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+
+      setTransactions(prev => prev.map(t => t.id === id ? updated[0] : t))
+      showNotification('Transaction updated!', 'success')
+      addLog('Updated', 'Rice Credit', `Updated transaction: ${updated[0]?.transaction_number || 'Unknown'}`)
+      return updated[0]
+    } catch (error) {
+      console.error('Error updating transaction:', error)
+      showNotification('Failed to update transaction', 'error')
+      return null
+    }
+  }
+
+  const deleteTransaction = async (id) => {
+    try {
+      const transaction = transactions.find(t => t.id === id)
+      const { error } = await supabase
+        .from('rice_credit')
+        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTransactions(prev => prev.filter(t => t.id !== id))
+      showNotification('Transaction moved to trash', 'warning')
+      addLog('Deleted', 'Rice Credit', `Soft deleted transaction: ${transaction?.transaction_number || 'Unknown'}`)
+    } catch (error) {
+      console.error('Error deleting transaction:', error)
+      showNotification('Failed to delete transaction', 'error')
+    }
+  }
+
+  const restoreTransaction = async (id) => {
+    try {
+      const transaction = transactions.find(t => t.id === id)
+      const { error } = await supabase
+        .from('rice_credit')
+        .update({ is_deleted: false, deleted_at: null })
+        .eq('id', id)
+
+      if (error) throw error
+
+      await loadTransactions()
+      showNotification('Transaction restored!', 'success')
+      addLog('Restored', 'Rice Credit', `Restored transaction: ${transaction?.transaction_number || 'Unknown'}`)
+    } catch (error) {
+      console.error('Error restoring transaction:', error)
+      showNotification('Failed to restore transaction', 'error')
+    }
+  }
+
+  const permanentDeleteTransaction = async (id) => {
+    try {
+      const transaction = transactions.find(t => t.id === id)
+      const { error } = await supabase
+        .from('rice_credit')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTransactions(prev => prev.filter(t => t.id !== id))
+      showNotification('Transaction permanently deleted', 'error')
+      addLog('Deleted', 'Rice Credit', `Permanently deleted transaction: ${transaction?.transaction_number || 'Unknown'}`)
+    } catch (error) {
+      console.error('Error permanently deleting transaction:', error)
+      showNotification('Failed to permanently delete transaction', 'error')
     }
   }
 
@@ -140,13 +228,48 @@ export const RiceCreditProvider = ({ children }) => {
     }
   }
 
-  // ... other CRUD functions (update, delete, restore, etc.)
+  const getTotals = () => {
+    const active = transactions
+    const totalAmount = active.reduce((sum, t) => sum + (t.amount || 0), 0)
+    const totalCost = active.reduce((sum, t) => sum + (t.cost || 0), 0)
+    const totalProfit = active.reduce((sum, t) => sum + (t.profit || 0), 0)
+    const totalPaid = active.reduce((sum, t) => {
+      const paid = (t.payments || []).reduce((s, p) => s + (p.amount || 0), 0)
+      return sum + paid
+    }, 0)
+    const totalRemaining = active.reduce((sum, t) => sum + (t.remaining_balance || 0), 0)
+    const overdueCount = active.filter(t => t.status === 'overdue').length
+    const completedCount = active.filter(t => t.status === 'completed').length
+    const activeCount = active.filter(t => t.status === 'active').length
+
+    return {
+      totalAmount,
+      totalCost,
+      totalProfit,
+      totalPaid,
+      totalRemaining,
+      overdueCount,
+      completedCount,
+      activeCount,
+      totalTransactions: active.length
+    }
+  }
+
+  const getActiveTransactions = () => transactions.filter(t => !t.is_deleted)
+  const getDeletedTransactions = () => transactions.filter(t => t.is_deleted)
 
   const value = {
     transactions,
     loading,
     addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    restoreTransaction,
+    permanentDeleteTransaction,
     addPayment,
+    getTotals,
+    getActiveTransactions,
+    getDeletedTransactions,
     refreshTransactions: loadTransactions
   }
 
