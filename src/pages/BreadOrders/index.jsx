@@ -165,9 +165,9 @@ const BreadOrders = () => {
   }
 
   const getTotalPayments = (order) => {
-    const payments = order.payments || []
-    return payments.reduce((sum, p) => sum + (p.amount || 0), 0)
-  }
+  const payments = order.payments || []
+  return payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+}
 
   return (
     <div className="space-y-6">
@@ -217,30 +217,30 @@ const BreadOrders = () => {
 
       {/* Stats */}
       {!showProducts && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Orders</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{totals.totalOrders}</p>
-          </div>
-          <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
-            <p className="text-lg font-bold text-primary-500">₱{(totals.totalSelling || 0).toLocaleString()}</p>
-          </div>
-          <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Cost</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">₱{(totals.totalCost || 0).toLocaleString()}</p>
-          </div>
-          <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Profit</p>
-            <p className={`text-lg font-bold ${(totals.totalProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ₱{(totals.totalProfit || 0).toLocaleString()}
-            </p>
-          </div>
-          <div className="card p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
-            <p className="text-lg font-bold text-green-500">{totals.completed}</p>
-          </div>
-        </div>
+     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+  <div className="card p-4">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Total Orders</p>
+    <p className="text-lg font-bold text-gray-900 dark:text-white">{totals.totalOrders || 0}</p>
+  </div>
+  <div className="card p-4">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
+    <p className="text-lg font-bold text-primary-500">₱{(totals.totalSelling || 0).toLocaleString()}</p>
+  </div>
+  <div className="card p-4">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Total Cost</p>
+    <p className="text-lg font-bold text-gray-900 dark:text-white">₱{(totals.totalCost || 0).toLocaleString()}</p>
+  </div>
+  <div className="card p-4">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Total Profit</p>
+    <p className={`text-lg font-bold ${(totals.totalProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+      ₱{(totals.totalProfit || 0).toLocaleString()}
+    </p>
+  </div>
+  <div className="card p-4">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+    <p className="text-lg font-bold text-green-500">{totals.completed || 0}</p>
+  </div>
+</div>
       )}
 
       {/* Search */}
@@ -352,118 +352,118 @@ const BreadOrders = () => {
                     <th className="table-header text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredOrders.map((order) => {
-                    const customer = getCustomer(order.customer_id)
-                    const product = products.find(p => p.id === order.product_id)
-                    const totalPaid = getTotalPayments(order)
-                    const isPaid = order.status === 'completed' || order.remaining_balance === 0
-                    
-                    return (
-                      <tr key={order.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                        <td className="table-cell font-mono text-xs text-gray-600 dark:text-gray-400">
-                          {order.transaction_number || `ORD-${order.id.toString().slice(-6)}`}
-                        </td>
-                        <td className="table-cell font-medium">
-                          {customer?.name || order.customer_name || 'Unknown'}
-                        </td>
-                        <td className="table-cell">
-                          {product?.name || order.product_name || 'Unknown'}
-                        </td>
-                        <td className="table-cell text-right">
-                          {order.boxes || 0}
-                        </td>
-                        <td className="table-cell text-right">
-                          {order.pieces || 0}
-                        </td>
-                        <td className="table-cell text-right font-medium text-primary-500">
-                          ₱{(order.total_selling_price || 0).toLocaleString()}
-                        </td>
-                        <td className="table-cell text-right text-gray-500">
-                          ₱{(order.total_cost || 0).toLocaleString()}
-                        </td>
-                        <td className={`table-cell text-right font-medium ${(order.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          ₱{(order.profit || 0).toLocaleString()}
-                        </td>
-                        <td className="table-cell">
-                          <div className="flex items-center gap-2">
-                            {getStatusBadge(order.status)}
-                            {order.is_deleted && (
-                              <span className="badge badge-danger">Deleted</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="table-cell text-right">
-                          <div className="flex items-center justify-end gap-1 flex-wrap">
-                            <button
-                              onClick={() => handleViewDetails(order)}
-                              className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4 text-blue-500" />
-                            </button>
-                            
-                            {!order.is_deleted && !isPaid && (
-                              <button
-                                onClick={() => handlePayment(order)}
-                                className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
-                                title="Record Payment"
-                              >
-                                <DollarSign className="w-4 h-4 text-green-500" />
-                              </button>
-                            )}
+              <tbody>
+  {filteredOrders.map((order) => {
+    const customer = getCustomer(order.customer_id)
+    const product = products.find(p => p.id === order.product_id)
+    const totalPaid = getTotalPayments(order)
+    const isPaid = order.status === 'completed' || order.remaining_balance === 0
+    
+    return (
+      <tr key={order.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+        <td className="table-cell font-mono text-xs text-gray-600 dark:text-gray-400">
+          {order.transaction_number || `ORD-${order.id.toString().slice(-6)}`}
+        </td>
+        <td className="table-cell font-medium">
+          {customer?.name || order.customer_name || 'Unknown'}
+        </td>
+        <td className="table-cell">
+          {product?.name || order.product_name || 'Unknown'}
+        </td>
+        <td className="table-cell text-right">
+          {order.boxes || 0}
+        </td>
+        <td className="table-cell text-right">
+          {order.pieces || 0}
+        </td>
+        <td className="table-cell text-right font-medium text-primary-500">
+          ₱{(order.total_selling_price || 0).toLocaleString()}
+        </td>
+        <td className="table-cell text-right text-gray-500">
+          ₱{(order.total_cost || 0).toLocaleString()}
+        </td>
+        <td className={`table-cell text-right font-medium ${(order.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          ₱{(order.profit || 0).toLocaleString()}
+        </td>
+        <td className="table-cell">
+          <div className="flex items-center gap-2">
+            {getStatusBadge(order.status)}
+            {order.is_deleted && (
+              <span className="badge badge-danger">Deleted</span>
+            )}
+          </div>
+        </td>
+        <td className="table-cell text-right">
+          <div className="flex items-center justify-end gap-1 flex-wrap">
+            <button
+              onClick={() => handleViewDetails(order)}
+              className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
+              title="View Details"
+            >
+              <Eye className="w-4 h-4 text-blue-500" />
+            </button>
+            
+            {!order.is_deleted && !isPaid && (
+              <button
+                onClick={() => handlePayment(order)}
+                className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
+                title="Record Payment"
+              >
+                <DollarSign className="w-4 h-4 text-green-500" />
+              </button>
+            )}
 
-                            {!order.is_deleted && (
-                              <select
-                                value={order.status}
-                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                className="text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="delivered">Delivered</option>
-                                <option value="completed">Paid</option>
-                              </select>
-                            )}
+            {!order.is_deleted && (
+              <select
+                value={order.status}
+                onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                className="text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+              >
+                <option value="pending">Pending</option>
+                <option value="delivered">Delivered</option>
+                <option value="completed">Paid</option>
+              </select>
+            )}
 
-                            {order.is_deleted ? (
-                              <>
-                                <button
-                                  onClick={() => handleRestoreOrder(order.id)}
-                                  className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
-                                  title="Restore"
-                                >
-                                  <RotateCcw className="w-4 h-4 text-green-500" />
-                                </button>
-                                <button
-                                  onClick={() => handlePermanentDelete(order.id)}
-                                  className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
-                                  title="Permanently Delete"
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => handleEditOrder(order)}
-                                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                  <Edit2 className="w-4 h-4 text-gray-500" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteOrder(order.id)}
-                                  className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
+            {order.is_deleted ? (
+              <>
+                <button
+                  onClick={() => handleRestoreOrder(order.id)}
+                  className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
+                  title="Restore"
+                >
+                  <RotateCcw className="w-4 h-4 text-green-500" />
+                </button>
+                <button
+                  onClick={() => handlePermanentDelete(order.id)}
+                  className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                  title="Permanently Delete"
+                >
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleEditOrder(order)}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4 text-gray-500" />
+                </button>
+                <button
+                  onClick={() => handleDeleteOrder(order.id)}
+                  className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </button>
+              </>
+            )}
+          </div>
+        </td>
+      </tr>
+    )
+  })}
+</tbody>
               </table>
             </div>
           </div>
