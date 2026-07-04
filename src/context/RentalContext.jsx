@@ -119,7 +119,7 @@ export const RentalProvider = ({ children }) => {
 
       setRentals(prev => [inserted[0], ...prev])
       showNotification(`Rental ${newRental.transaction_number} created!`, 'success')
-      addLog('Created', 'Rental', `Created rental: ${newRental.transaction_number} - ${data.driver_name} driving ${data.vehicle_plate}`)
+      addLog('Created', 'Rental', `Created rental: ${newRental.transaction_number}`)
       return inserted[0]
     } catch (error) {
       console.error('❌ Error adding rental:', error)
@@ -226,9 +226,33 @@ export const RentalProvider = ({ children }) => {
     }
   }
 
-  const getRental = (id) => {
-    return rentals.find(r => r.id === id)
+  const getTotals = () => {
+    const active = rentals
+    const totalRentals = active.length
+    const totalAmount = active.reduce((sum, r) => sum + (r.total_amount || 0), 0)
+    const totalPaid = active.reduce((sum, r) => {
+      const downPayment = r.down_payment || 0
+      const payments = (r.payments || []).reduce((s, p) => s + (p.amount || 0), 0)
+      return sum + downPayment + payments
+    }, 0)
+    const totalRemaining = active.reduce((sum, r) => sum + (r.remaining_balance || 0), 0)
+    const activeCount = active.filter(r => r.status === 'active').length
+    const completedCount = active.filter(r => r.status === 'completed').length
+    const cancelledCount = active.filter(r => r.status === 'cancelled').length
+
+    return {
+      totalRentals,
+      totalAmount,
+      totalPaid,
+      totalRemaining,
+      activeCount,
+      completedCount,
+      cancelledCount
+    }
   }
+
+  const getActiveRentals = () => rentals.filter(r => !r.is_deleted)
+  const getDeletedRentals = () => rentals.filter(r => r.is_deleted)
 
   const value = {
     rentals,
@@ -237,7 +261,10 @@ export const RentalProvider = ({ children }) => {
     addPayment,
     updateRentalStatus,
     deleteRental,
-    getRental,
+    getRental: (id) => rentals.find(r => r.id === id),
+    getTotals,
+    getActiveRentals,
+    getDeletedRentals,
     refreshRentals: loadRentals
   }
 
