@@ -32,6 +32,7 @@ export const RentalProvider = ({ children }) => {
       setRentals(data || [])
     } catch (error) {
       console.error('Error loading rentals:', error)
+      showNotification('Failed to load rentals', 'error')
     } finally {
       setLoading(false)
     }
@@ -43,14 +44,35 @@ export const RentalProvider = ({ children }) => {
 
   const addRental = async (data) => {
     try {
+      console.log('📝 Adding rental with data:', data)
+
+      // Validate required fields
+      if (!data.vehicle_id || !data.driver_id || !data.start_date || !data.end_date) {
+        showNotification('Please fill in all required fields', 'error')
+        return null
+      }
+
       const startDate = new Date(data.start_date)
       const endDate = new Date(data.end_date)
+      
+      // Validate dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        showNotification('Invalid date format', 'error')
+        return null
+      }
+
+      if (endDate < startDate) {
+        showNotification('End date must be after start date', 'error')
+        return null
+      }
+
       const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
-      const totalAmount = totalDays * (data.daily_boundary || 0)
-      const downPayment = data.down_payment || 0
+      const dailyBoundary = parseFloat(data.daily_boundary) || 0
+      const totalAmount = totalDays * dailyBoundary
+      const downPayment = parseFloat(data.down_payment) || 0
       const remainingBalance = totalAmount - downPayment
 
-      // Initialize payments array with down payment if any
+      // Initialize payments with down payment if any
       const initialPayments = downPayment > 0 ? [{
         id: Date.now(),
         amount: downPayment,
@@ -61,14 +83,14 @@ export const RentalProvider = ({ children }) => {
       const newRental = {
         id: Date.now(),
         transaction_number: `RENT-${Date.now().toString().slice(-8)}`,
-        vehicle_id: data.vehicle_id,
-        driver_id: data.driver_id,
+        vehicle_id: parseInt(data.vehicle_id),
+        driver_id: parseInt(data.driver_id),
         driver_name: data.driver_name || '',
         vehicle_plate: data.vehicle_plate || '',
         start_date: data.start_date,
         end_date: data.end_date,
         total_days: totalDays,
-        daily_boundary: data.daily_boundary || 0,
+        daily_boundary: dailyBoundary,
         total_amount: totalAmount,
         down_payment: downPayment,
         remaining_balance: remainingBalance,
@@ -80,25 +102,32 @@ export const RentalProvider = ({ children }) => {
         updated_at: new Date().toISOString()
       }
 
+      console.log('📤 Inserting rental:', newRental)
+
       const { data: inserted, error } = await supabase
         .from('rentals')
         .insert([newRental])
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Supabase insert error:', error)
+        showNotification('Failed to create rental: ' + error.message, 'error')
+        return null
+      }
+
+      console.log('✅ Rental created:', inserted[0])
 
       setRentals(prev => [inserted[0], ...prev])
       showNotification(`Rental ${newRental.transaction_number} created!`, 'success')
       addLog('Created', 'Rental', `Created rental: ${newRental.transaction_number} - ${data.driver_name} driving ${data.vehicle_plate}`)
       return inserted[0]
     } catch (error) {
-      console.error('Error adding rental:', error)
-      showNotification('Failed to create rental', 'error')
+      console.error('❌ Error adding rental:', error)
+      showNotification('Failed to create rental: ' + error.message, 'error')
       return null
     }
   }
 
-  // Add payment to rental
   const addPayment = async (id, amount) => {
     try {
       const rental = rentals.find(r => r.id === id)
@@ -134,20 +163,13 @@ export const RentalProvider = ({ children }) => {
         .eq('id', id)
         .select()
 
-      if (error) throw error
-
-      // Update vehicle status if completed
-      if (status === 'completed') {
-        await supabase
-          .from('vehicles')
-          .update({ status: 'available', updated_at: new Date().toISOString() })
-          .eq('id', rental.vehicle_id)
+      if (error) {
+        console.error('Error adding payment:', error)
+        showNotification('Failed to record payment', 'error')
+        return null
       }
 
-      setRentals(prev => prev.map(r => 
-        r.id === id ? updated[0] : r
-      ))
-
+      setRentals(prev => prev.map(r => r.id === id ? updated[0] : r))
       addLog('Paid', 'Rental', `Payment of ₱${amount} recorded for ${rental.transaction_number}`)
       showNotification(`Payment of ₱${amount} recorded!`, 'success')
       return updated[0]
@@ -162,31 +184,25 @@ export const RentalProvider = ({ children }) => {
     try {
       const rental = rentals.find(r => r.id === id)
       
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('rentals')
         .update({ 
           status: status,
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
+        .select()
 
       if (error) throw error
 
-      if (status === 'completed' || status === 'cancelled') {
-        await supabase
-          .from('vehicles')
-          .update({ status: 'available', updated_at: new Date().toISOString() })
-          .eq('id', rental?.vehicle_id)
-      }
-
-      setRentals(prev => prev.map(r => 
-        r.id === id ? { ...r, status } : r
-      ))
+      setRentals(prev => prev.map(r => r.id === id ? updated[0] : r))
       showNotification(`Rental ${status === 'completed' ? 'completed' : 'cancelled'}!`, 'success')
       addLog('Updated', 'Rental', `Rental ${rental?.transaction_number || 'Unknown'} marked as ${status}`)
+      return updated[0]
     } catch (error) {
       console.error('Error updating rental status:', error)
       showNotification('Failed to update rental status', 'error')
+      return null
     }
   }
 
@@ -200,11 +216,6 @@ export const RentalProvider = ({ children }) => {
         .eq('id', id)
 
       if (error) throw error
-
-      await supabase
-        .from('vehicles')
-        .update({ status: 'available', updated_at: new Date().toISOString() })
-        .eq('id', rental?.vehicle_id)
 
       setRentals(prev => prev.filter(r => r.id !== id))
       showNotification('Rental deleted!', 'warning')
