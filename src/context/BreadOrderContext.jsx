@@ -45,12 +45,19 @@ export const BreadOrderProvider = ({ children }) => {
 
   const addOrder = async (data) => {
     try {
-      const boxes = data.boxes || 0
-      const pieces = data.pieces || 0
-      const sellingPricePerBox = data.sellingPricePerBox || 0
-      const sellingPricePerPiece = data.sellingPricePerPiece || 0
-      const costPerBox = data.costPerBox || 0
-      const costPerPiece = data.costPerPiece || 0
+      console.log('📝 Adding bread order with data:', data)
+
+      if (!data.customerId || !data.productId) {
+        showNotification('Please select a customer and product', 'error')
+        return null
+      }
+
+      const boxes = parseInt(data.boxes) || 0
+      const pieces = parseInt(data.pieces) || 0
+      const sellingPricePerBox = parseFloat(data.sellingPricePerBox) || 0
+      const sellingPricePerPiece = parseFloat(data.sellingPricePerPiece) || 0
+      const costPerBox = parseFloat(data.costPerBox) || 0
+      const costPerPiece = parseFloat(data.costPerPiece) || 0
       
       const totalSellingPrice = (boxes * sellingPricePerBox) + (pieces * sellingPricePerPiece)
       const totalCost = (boxes * costPerBox) + (pieces * costPerPiece)
@@ -59,9 +66,9 @@ export const BreadOrderProvider = ({ children }) => {
       const newOrder = {
         id: Date.now(),
         transaction_number: generateOrderNumber(),
-        customer_id: data.customerId ? parseInt(data.customerId) : null,
+        customer_id: parseInt(data.customerId),
         customer_name: data.customerName || '',
-        product_id: data.productId ? parseInt(data.productId) : null,
+        product_id: parseInt(data.productId),
         product_name: data.productName || '',
         boxes: boxes,
         pieces: pieces,
@@ -82,46 +89,77 @@ export const BreadOrderProvider = ({ children }) => {
         is_deleted: false
       }
 
+      console.log('📤 Inserting bread order:', newOrder)
+
       const { data: inserted, error } = await supabase
         .from('bread_orders')
         .insert([newOrder])
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Supabase insert error:', error)
+        showNotification('Failed to create order: ' + error.message, 'error')
+        return null
+      }
 
+      console.log('✅ Bread order created:', inserted[0])
       setOrders(prev => [inserted[0], ...prev])
       showNotification(`Order ${inserted[0].transaction_number} created!`, 'success')
       addLog('Created', 'Bread Order', `Created order: ${inserted[0].transaction_number}`)
       return inserted[0]
     } catch (error) {
-      console.error('Error adding order:', error)
-      showNotification('Failed to create order', 'error')
+      console.error('❌ Error adding order:', error)
+      showNotification('Failed to create order: ' + error.message, 'error')
       return null
     }
   }
 
   const updateOrder = async (id, data) => {
     try {
+      const order = orders.find(o => o.id === id)
+      if (!order) {
+        showNotification('Order not found', 'error')
+        return null
+      }
+
+      const boxes = parseInt(data.boxes) || order.boxes || 0
+      const pieces = parseInt(data.pieces) || order.pieces || 0
+      const sellingPricePerBox = parseFloat(data.sellingPricePerBox) || order.selling_price_per_box || 0
+      const sellingPricePerPiece = parseFloat(data.sellingPricePerPiece) || order.selling_price_per_piece || 0
+      const costPerBox = parseFloat(data.costPerBox) || order.cost_per_box || 0
+      const costPerPiece = parseFloat(data.costPerPiece) || order.cost_per_piece || 0
+      
+      const totalSellingPrice = (boxes * sellingPricePerBox) + (pieces * sellingPricePerPiece)
+      const totalCost = (boxes * costPerBox) + (pieces * costPerPiece)
+      const profit = totalSellingPrice - totalCost
+
       const { data: updated, error } = await supabase
         .from('bread_orders')
         .update({
-          customer_name: data.customerName,
-          product_name: data.productName,
-          boxes: data.boxes || 0,
-          pieces: data.pieces || 0,
-          selling_price_per_box: data.sellingPricePerBox || 0,
-          selling_price_per_piece: data.sellingPricePerPiece || 0,
-          cost_per_box: data.costPerBox || 0,
-          cost_per_piece: data.costPerPiece || 0,
-          status: data.status || 'pending',
-          delivery_date: data.deliveryDate || null,
-          notes: data.notes || '',
+          customer_name: data.customerName || order.customer_name,
+          product_name: data.productName || order.product_name,
+          boxes: boxes,
+          pieces: pieces,
+          selling_price_per_box: sellingPricePerBox,
+          selling_price_per_piece: sellingPricePerPiece,
+          cost_per_box: costPerBox,
+          cost_per_piece: costPerPiece,
+          total_selling_price: totalSellingPrice,
+          total_cost: totalCost,
+          profit: profit,
+          status: data.status || order.status,
+          delivery_date: data.deliveryDate || order.delivery_date,
+          notes: data.notes || order.notes,
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error updating order:', error)
+        showNotification('Failed to update order', 'error')
+        return null
+      }
 
       setOrders(prev => prev.map(o => o.id === id ? updated[0] : o))
       showNotification('Order updated!', 'success')
@@ -199,6 +237,11 @@ export const BreadOrderProvider = ({ children }) => {
         return null
       }
 
+      if (amount > order.remaining_balance) {
+        showNotification(`Amount exceeds remaining balance of ₱${order.remaining_balance}`, 'error')
+        return null
+      }
+
       const payments = [...(order.payments || [])]
       let newBalance = order.remaining_balance - amount
 
@@ -222,7 +265,11 @@ export const BreadOrderProvider = ({ children }) => {
         .eq('id', id)
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error adding payment:', error)
+        showNotification('Failed to record payment', 'error')
+        return null
+      }
 
       setOrders(prev => prev.map(o => o.id === id ? updated[0] : o))
       addLog('Paid', 'Bread Order', `Payment of ₱${amount} recorded for ${order.transaction_number}`)
@@ -238,6 +285,11 @@ export const BreadOrderProvider = ({ children }) => {
   const updateOrderStatus = async (id, status) => {
     try {
       const order = orders.find(o => o.id === id)
+      if (!order) {
+        showNotification('Order not found', 'error')
+        return null
+      }
+
       const { data: updated, error } = await supabase
         .from('bread_orders')
         .update({
@@ -247,11 +299,15 @@ export const BreadOrderProvider = ({ children }) => {
         .eq('id', id)
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error updating order status:', error)
+        showNotification('Failed to update order status', 'error')
+        return null
+      }
 
       setOrders(prev => prev.map(o => o.id === id ? updated[0] : o))
       showNotification(`Order status updated to ${status}!`, 'success')
-      addLog('Updated', 'Bread Order', `Order ${order?.transaction_number || 'Unknown'} status changed to ${status}`)
+      addLog('Updated', 'Bread Order', `Order ${order.transaction_number} status changed to ${status}`)
       return updated[0]
     } catch (error) {
       console.error('Error updating order status:', error)
@@ -261,19 +317,33 @@ export const BreadOrderProvider = ({ children }) => {
   }
 
   const getTotals = () => {
-    const active = orders
-    const totalOrders = active.length
-    const totalSelling = active.reduce((sum, o) => sum + (o.total_selling_price || 0), 0)
-    const totalCost = active.reduce((sum, o) => sum + (o.total_cost || 0), 0)
-    const totalProfit = active.reduce((sum, o) => sum + (o.profit || 0), 0)
-    const totalPaid = active.reduce((sum, o) => {
+    // Safe check - if orders is undefined or not an array, return default values
+    if (!orders || !Array.isArray(orders)) {
+      return {
+        totalOrders: 0,
+        totalSelling: 0,
+        totalCost: 0,
+        totalProfit: 0,
+        totalPaid: 0,
+        totalRemaining: 0,
+        pending: 0,
+        delivered: 0,
+        completed: 0
+      }
+    }
+
+    const totalOrders = orders.length || 0
+    const totalSelling = orders.reduce((sum, o) => sum + (o.total_selling_price || 0), 0)
+    const totalCost = orders.reduce((sum, o) => sum + (o.total_cost || 0), 0)
+    const totalProfit = orders.reduce((sum, o) => sum + (o.profit || 0), 0)
+    const totalPaid = orders.reduce((sum, o) => {
       const paid = (o.payments || []).reduce((s, p) => s + (p.amount || 0), 0)
       return sum + paid
     }, 0)
-    const totalRemaining = active.reduce((sum, o) => sum + (o.remaining_balance || 0), 0)
-    const pending = active.filter(o => o.status === 'pending').length
-    const delivered = active.filter(o => o.status === 'delivered').length
-    const completed = active.filter(o => o.status === 'completed').length
+    const totalRemaining = orders.reduce((sum, o) => sum + (o.remaining_balance || 0), 0)
+    const pending = orders.filter(o => o.status === 'pending').length || 0
+    const delivered = orders.filter(o => o.status === 'delivered').length || 0
+    const completed = orders.filter(o => o.status === 'completed').length || 0
 
     return {
       totalOrders,
@@ -288,11 +358,18 @@ export const BreadOrderProvider = ({ children }) => {
     }
   }
 
-  const getActiveOrders = () => orders.filter(o => !o.is_deleted)
-  const getDeletedOrders = () => orders.filter(o => o.is_deleted)
+  const getActiveOrders = () => {
+    return orders && Array.isArray(orders) ? orders.filter(o => !o.is_deleted) : []
+  }
+
+  const getDeletedOrders = () => {
+    return orders && Array.isArray(orders) ? orders.filter(o => o.is_deleted) : []
+  }
 
   const value = {
-    orders,
+    orders: getActiveOrders(),
+    deletedOrders: getDeletedOrders(),
+    allOrders: orders,
     loading,
     addOrder,
     updateOrder,
