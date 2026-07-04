@@ -1,176 +1,98 @@
 import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { useCustomers } from '../../context/CustomerContext'
-import { useBreadProducts } from '../../context/BreadProductContext'
 
-const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
-  const { customers } = useCustomers()
-  const { products } = useBreadProducts()
-  
+const BreadProductModal = ({ isOpen, onClose, onSave, product }) => {
   const [formData, setFormData] = useState({
-    customerId: '',
-    customerName: '',
-    productId: '',
-    productName: '',
-    boxes: '',
-    pieces: '',
-    status: 'pending',
-    deliveryDate: '',
-    notes: ''
-  })
-
-  const [selectedProduct, setSelectedProduct] = useState(null)
-  const [computedValues, setComputedValues] = useState({
-    totalSelling: 0,
-    totalCost: 0,
-    profit: 0
+    name: '',
+    sellingPricePerBox: '',
+    sellingPricePerPiece: '',
+    costPerBox: '',
+    costPerPiece: '',
+    piecesPerBox: '24',
+    stockBoxes: '',
+    stockPieces: ''
   })
 
   useEffect(() => {
-    if (order) {
-      const product = products.find(p => p.id === order.product_id)
-      setSelectedProduct(product || null)
+    if (product) {
       setFormData({
-        customerId: order.customer_id || '',
-        customerName: order.customer_name || '',
-        productId: order.product_id || '',
-        productName: order.product_name || '',
-        boxes: order.boxes || '',
-        pieces: order.pieces || '',
-        status: order.status || 'pending',
-        deliveryDate: order.delivery_date || '',
-        notes: order.notes || ''
+        name: product.name || '',
+        sellingPricePerBox: product.selling_price_per_box || '',
+        sellingPricePerPiece: product.selling_price_per_piece || '',
+        costPerBox: product.cost_per_box || '',
+        costPerPiece: product.cost_per_piece || '',
+        piecesPerBox: product.pieces_per_box || '24',
+        stockBoxes: product.stock_boxes || '',
+        stockPieces: product.stock_pieces || ''
       })
     } else {
-      setSelectedProduct(null)
       setFormData({
-        customerId: '',
-        customerName: '',
-        productId: '',
-        productName: '',
-        boxes: '',
-        pieces: '',
-        status: 'pending',
-        deliveryDate: '',
-        notes: ''
+        name: '',
+        sellingPricePerBox: '',
+        sellingPricePerPiece: '',
+        costPerBox: '',
+        costPerPiece: '',
+        piecesPerBox: '24',
+        stockBoxes: '',
+        stockPieces: ''
       })
     }
-  }, [order, isOpen, products])
-
-  // Auto-compute values when boxes, pieces, or product changes
-  useEffect(() => {
-    const boxes = parseInt(formData.boxes) || 0
-    const pieces = parseInt(formData.pieces) || 0
-    
-    if (selectedProduct) {
-      const sellingPricePerBox = selectedProduct.selling_price_per_box || 0
-      const sellingPricePerPiece = selectedProduct.selling_price_per_piece || 0
-      const costPerBox = selectedProduct.cost_per_box || 0
-      const costPerPiece = selectedProduct.cost_per_piece || 0
-      
-      const totalSelling = (boxes * sellingPricePerBox) + (pieces * sellingPricePerPiece)
-      const totalCost = (boxes * costPerBox) + (pieces * costPerPiece)
-      const profit = totalSelling - totalCost
-      
-      setComputedValues({ totalSelling, totalCost, profit })
-    } else {
-      setComputedValues({ totalSelling: 0, totalCost: 0, profit: 0 })
-    }
-  }, [formData.boxes, formData.pieces, selectedProduct])
+  }, [product, isOpen])
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
-
-  const handleCustomerSelect = (e) => {
-    const customerId = e.target.value
-    const customer = customers.find(c => c.id === parseInt(customerId))
-    setFormData(prev => ({
-      ...prev,
-      customerId: customerId,
-      customerName: customer ? customer.name : ''
-    }))
-  }
-
-  const handleProductSelect = (e) => {
-    const productId = e.target.value
-    const product = products.find(p => p.id === parseInt(productId))
-    if (product) {
-      setSelectedProduct(product)
-      setFormData(prev => ({
-        ...prev,
-        productId: productId,
-        productName: product.name
-      }))
-    } else {
-      setSelectedProduct(null)
-      setFormData(prev => ({
-        ...prev,
-        productId: '',
-        productName: ''
-      }))
-    }
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value }
+      
+      // Auto-compute price per piece when sellingPricePerBox or piecesPerBox changes
+      if (name === 'sellingPricePerBox' || name === 'piecesPerBox') {
+        const priceBox = parseFloat(name === 'sellingPricePerBox' ? value : prev.sellingPricePerBox) || 0
+        const pieces = parseInt(name === 'piecesPerBox' ? value : prev.piecesPerBox) || 1
+        if (priceBox > 0 && pieces > 0) {
+          newData.sellingPricePerPiece = (priceBox / pieces).toFixed(2)
+        }
+      }
+      
+      // Auto-compute cost per piece
+      if (name === 'costPerBox' || name === 'piecesPerBox') {
+        const costBox = parseFloat(name === 'costPerBox' ? value : prev.costPerBox) || 0
+        const pieces = parseInt(name === 'piecesPerBox' ? value : prev.piecesPerBox) || 1
+        if (costBox > 0 && pieces > 0) {
+          newData.costPerPiece = (costBox / pieces).toFixed(2)
+        }
+      }
+      
+      return newData
+    })
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!formData.customerId || !formData.productId) {
-      alert('Please select a customer and product')
+    if (!formData.name.trim()) {
+      alert('Please enter product name')
       return
     }
-    if (!formData.boxes && !formData.pieces) {
-      alert('Please enter at least 1 box or piece')
-      return
-    }
-
-    if (!selectedProduct) {
-      alert('Please select a valid product')
-      return
-    }
-
-    const boxes = parseInt(formData.boxes) || 0
-    const pieces = parseInt(formData.pieces) || 0
-    
-    // Check stock availability
-    if (boxes > (selectedProduct.stock_boxes || 0)) {
-      alert(`Not enough boxes! Available: ${selectedProduct.stock_boxes}`)
-      return
-    }
-    if (pieces > (selectedProduct.stock_pieces || 0)) {
-      alert(`Not enough pieces! Available: ${selectedProduct.stock_pieces}`)
-      return
-    }
-
     onSave({
-      ...formData,
-      boxes: boxes,
-      pieces: pieces,
-      productName: selectedProduct.name,
-      sellingPricePerBox: selectedProduct.selling_price_per_box || 0,
-      sellingPricePerPiece: selectedProduct.selling_price_per_piece || 0,
-      costPerBox: selectedProduct.cost_per_box || 0,
-      costPerPiece: selectedProduct.cost_per_piece || 0,
-      productId: parseInt(formData.productId),
-      totalSellingPrice: computedValues.totalSelling,
-      totalCost: computedValues.totalCost,
-      profit: computedValues.profit
+      name: formData.name.trim(),
+      sellingPricePerBox: parseFloat(formData.sellingPricePerBox) || 0,
+      sellingPricePerPiece: parseFloat(formData.sellingPricePerPiece) || 0,
+      costPerBox: parseFloat(formData.costPerBox) || 0,
+      costPerPiece: parseFloat(formData.costPerPiece) || 0,
+      piecesPerBox: parseInt(formData.piecesPerBox) || 24,
+      stockBoxes: parseInt(formData.stockBoxes) || 0,
+      stockPieces: parseInt(formData.stockPieces) || 0
     })
     onClose()
   }
 
   if (!isOpen) return null
 
-  const boxes = parseInt(formData.boxes) || 0
-  const pieces = parseInt(formData.pieces) || 0
-  const { totalSelling, totalCost, profit } = computedValues
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-            {order ? 'Edit Bread Order' : 'New Bread Order'}
+            {product ? 'Edit Bread Product' : 'Add Bread Product'}
           </h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -179,163 +101,126 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="label">Customer *</label>
-            <select
-              name="customerId"
-              value={formData.customerId}
-              onChange={handleCustomerSelect}
-              className="input-field"
-              required
-            >
-              <option value="">Select Customer</option>
-              {customers.map(customer => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="label">Bread Product *</label>
-            <select
-              name="productId"
-              value={formData.productId}
-              onChange={handleProductSelect}
-              className="input-field"
-              required
-            >
-              <option value="">Select Product</option>
-              {products.map(product => (
-                <option key={product.id} value={product.id}>
-                  {product.name} 
-                  {product.stock_boxes !== undefined && (
-                    <span className="text-gray-400 text-xs ml-1">
-                      (Stock: {product.stock_boxes || 0} boxes)
-                    </span>
-                  )}
-                </option>
-              ))}
-            </select>
-            
-            {selectedProduct && (
-              <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
-                <p className="text-gray-600 dark:text-gray-400">
-                  Selling: <span className="font-medium text-primary-500">₱{(selectedProduct.selling_price_per_box || 0).toFixed(2)}/box</span>
-                  <span className="text-gray-400 ml-1">({selectedProduct.pieces_per_box || 24} pcs)</span>
-                </p>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Per Piece: <span className="font-medium text-primary-500">₱{(selectedProduct.selling_price_per_piece || 0).toFixed(2)}</span>
-                </p>
-                <p className={`text-gray-600 dark:text-gray-400 ${(selectedProduct.stock_boxes || 0) <= 5 ? 'text-red-500' : ''}`}>
-                  Available: {selectedProduct.stock_boxes || 0} boxes | {selectedProduct.stock_pieces || 0} pieces
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Boxes</label>
-              <input
-                type="number"
-                name="boxes"
-                value={formData.boxes}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="0"
-                min="0"
-                step="1"
-              />
-              {selectedProduct && selectedProduct.stock_boxes > 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Max: {selectedProduct.stock_boxes} boxes
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="label">Pieces</label>
-              <input
-                type="number"
-                name="pieces"
-                value={formData.pieces}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="0"
-                min="0"
-                step="1"
-              />
-              {selectedProduct && selectedProduct.stock_pieces > 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Max: {selectedProduct.stock_pieces} pieces
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Total Amount Payable - AUTO COMPUTED */}
-          {selectedProduct && (boxes > 0 || pieces > 0) && (
-            <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount Payable</p>
-              <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                ₱{totalSelling.toFixed(2)}
-              </p>
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                <p>{boxes} boxes × ₱{(selectedProduct?.selling_price_per_box || 0).toFixed(2)} = ₱{(boxes * (selectedProduct?.selling_price_per_box || 0)).toFixed(2)}</p>
-                {pieces > 0 && (
-                  <p>{pieces} pieces × ₱{(selectedProduct?.selling_price_per_piece || 0).toFixed(2)} = ₱{(pieces * (selectedProduct?.selling_price_per_piece || 0)).toFixed(2)}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Profit/Cost breakdown */}
-          {selectedProduct && (boxes > 0 || pieces > 0) && (
-            <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
-              <p className="text-gray-600 dark:text-gray-400">
-                Cost: <span className="font-medium text-gray-900 dark:text-white">₱{totalCost.toFixed(2)}</span>
-              </p>
-              <p className={`font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                Profit: ₱{profit.toFixed(2)}
-              </p>
-            </div>
-          )}
-
-          <div>
-            <label className="label">Status</label>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="input-field"
-            >
-              <option value="pending">Pending (Reserved)</option>
-              <option value="delivered">Delivered</option>
-              <option value="completed">Paid</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="label">Delivery Date</label>
+            <label className="label">Product Name *</label>
             <input
-              type="date"
-              name="deliveryDate"
-              value={formData.deliveryDate}
+              type="text"
+              name="name"
+              value={formData.name}
               onChange={handleChange}
               className="input-field"
+              placeholder="e.g., Pandesal"
+              required
             />
           </div>
 
           <div>
-            <label className="label">Notes</label>
-            <textarea
-              name="notes"
-              value={formData.notes}
+            <label className="label">Pieces per Box</label>
+            <input
+              type="number"
+              name="piecesPerBox"
+              value={formData.piecesPerBox}
               onChange={handleChange}
-              className="input-field resize-none"
-              placeholder="Additional notes..."
-              rows="2"
+              className="input-field"
+              placeholder="24"
+              min="1"
+              step="1"
             />
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Selling Price</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Per Box (₱)</label>
+                <input
+                  type="number"
+                  name="sellingPricePerBox"
+                  value={formData.sellingPricePerBox}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <label className="label">Per Piece (₱)</label>
+                <input
+                  type="number"
+                  name="sellingPricePerPiece"
+                  value={formData.sellingPricePerPiece}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Puhunan / Cost</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Cost per Box (₱)</label>
+                <input
+                  type="number"
+                  name="costPerBox"
+                  value={formData.costPerBox}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <label className="label">Cost per Piece (₱)</label>
+                <input
+                  type="number"
+                  name="costPerPiece"
+                  value={formData.costPerPiece}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Inventory / Stock</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Stock Boxes</label>
+                <input
+                  type="number"
+                  name="stockBoxes"
+                  value={formData.stockBoxes}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0"
+                  min="0"
+                  step="1"
+                />
+              </div>
+              <div>
+                <label className="label">Stock Pieces</label>
+                <input
+                  type="number"
+                  name="stockPieces"
+                  value={formData.stockPieces}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="0"
+                  min="0"
+                  step="1"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -343,7 +228,7 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
               Cancel
             </button>
             <button type="submit" className="flex-1 btn-primary">
-              {order ? 'Update' : 'Create'} Order
+              {product ? 'Update' : 'Add'} Product
             </button>
           </div>
         </form>
@@ -352,4 +237,4 @@ const BreadOrderModal = ({ isOpen, onClose, onSave, order }) => {
   )
 }
 
-export default BreadOrderModal
+export default BreadProductModal
