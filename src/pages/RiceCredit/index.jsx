@@ -4,7 +4,7 @@ import { useRiceCredit } from '../../context/RiceCreditContext'
 import { useCustomers } from '../../context/CustomerContext'
 import RiceCreditModal from '../../components/modals/RiceCreditModal'
 import PaymentModal from '../../components/modals/PaymentModal'
-import TransactionHistoryModal from '../../components/modals/TransactionHistoryModal'
+import TransactionDetailsModal from '../../components/modals/TransactionDetailsModal'
 
 const RiceCredit = () => {
   const { 
@@ -24,7 +24,7 @@ const RiceCredit = () => {
   const [showTrash, setShowTrash] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState(null)
   const [selectedTransaction, setSelectedTransaction] = useState(null)
 
@@ -99,9 +99,9 @@ const RiceCredit = () => {
     setIsPaymentModalOpen(false)
   }
 
-  const handleViewHistory = (transaction) => {
+  const handleViewDetails = (transaction) => {
     setSelectedTransaction(transaction)
-    setIsHistoryModalOpen(true)
+    setIsDetailsModalOpen(true)
   }
 
   const handleCloseModal = () => {
@@ -267,9 +267,9 @@ const RiceCredit = () => {
                       <td className="table-cell text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleViewHistory(transaction)}
+                            onClick={() => handleViewDetails(transaction)}
                             className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
-                            title="View History"
+                            title="View Details"
                           >
                             <Eye className="w-4 h-4 text-blue-500" />
                           </button>
@@ -348,13 +348,14 @@ const RiceCredit = () => {
         suggestedAmount={selectedTransaction?.payment_per_give || 0}
       />
 
-      <TransactionHistoryModal
-        isOpen={isHistoryModalOpen}
+      <TransactionDetailsModal
+        isOpen={isDetailsModalOpen}
         onClose={() => {
-          setIsHistoryModalOpen(false)
+          setIsDetailsModalOpen(false)
           setSelectedTransaction(null)
         }}
         transaction={selectedTransaction}
+        type="rice-credit"
       />
     </div>
   )
