@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { CreditCard, Plus, Search, Edit2, Trash2, RotateCcw, Eye, Archive, CheckCircle, Clock, AlertCircle, Calendar } from 'lucide-react'
 import { usePayables } from '../../context/PayableContext'
 import PayableModal from '../../components/modals/PayableModal'
-import TransactionHistoryModal from '../../components/modals/TransactionHistoryModal'
+import TransactionDetailsModal from '../../components/modals/TransactionDetailsModal'
 
 const Payables = () => {
   const { 
@@ -20,7 +20,7 @@ const Payables = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [showTrash, setShowTrash] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [editingPayable, setEditingPayable] = useState(null)
   const [selectedPayable, setSelectedPayable] = useState(null)
 
@@ -62,8 +62,12 @@ const Payables = () => {
     return colors[category] || 'badge-secondary'
   }
 
-  const handleAddPayable = (data) => {
-    addPayable(data)
+  const handleAddPayable = async (data) => {
+    const result = await addPayable(data)
+    if (result) {
+      setIsModalOpen(false)
+      setEditingPayable(null)
+    }
   }
 
   const handleEditPayable = (payable) => {
@@ -71,9 +75,12 @@ const Payables = () => {
     setIsModalOpen(true)
   }
 
-  const handleUpdatePayable = (data) => {
-    updatePayable(editingPayable.id, data)
-    setEditingPayable(null)
+  const handleUpdatePayable = async (data) => {
+    const result = await updatePayable(editingPayable.id, data)
+    if (result) {
+      setEditingPayable(null)
+      setIsModalOpen(false)
+    }
   }
 
   const handleDeletePayable = (id) => {
@@ -92,14 +99,14 @@ const Payables = () => {
     }
   }
 
-  const handleViewHistory = (payable) => {
+  const handleViewDetails = (payable) => {
     setSelectedPayable(payable)
-    setIsHistoryModalOpen(true)
+    setIsDetailsModalOpen(true)
   }
 
-  const handleMarkAsPaid = (id) => {
+  const handleMarkAsPaid = async (id) => {
     if (window.confirm('Mark this as paid?')) {
-      markAsPaid(id)
+      await markAsPaid(id)
     }
   }
 
@@ -116,8 +123,8 @@ const Payables = () => {
     
     return payables.filter(p => {
       if (p.status === 'paid') return false
-      if (!p.dueDate) return false
-      const dueDate = new Date(p.dueDate)
+      if (!p.due_date) return false
+      const dueDate = new Date(p.due_date)
       return dueDate >= today && dueDate <= fiveDaysFromNow
     })
   }
@@ -129,7 +136,7 @@ const Payables = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Monthly Payables</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Payables</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Track bills, loans, and other monthly obligations
           </p>
@@ -171,7 +178,7 @@ const Payables = () => {
           </div>
           <div className="card p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">Overdue</p>
-            <p className="text-xl font-bold text-red-500">{totals.overdueCount}</p>
+            <p className="text-xl font-bold text-red-500">{totals.overdueCount || 0}</p>
           </div>
           <div className="card p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">Due Soon</p>
@@ -190,7 +197,7 @@ const Payables = () => {
           <div className="mt-2 flex flex-wrap gap-2">
             {dueSoon.map(p => (
               <span key={p.id} className="text-sm bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-sm">
-                {p.name}: ₱{p.amount.toLocaleString()} - {p.dueDate ? new Date(p.dueDate).toLocaleDateString() : 'N/A'}
+                {p.name}: ₱{p.amount.toLocaleString()} - {p.due_date ? new Date(p.due_date).toLocaleDateString() : 'N/A'}
               </span>
             ))}
           </div>
@@ -243,7 +250,7 @@ const Payables = () => {
               </thead>
               <tbody>
                 {filteredPayables.map((payable) => {
-                  const isDeleted = payable.isDeleted
+                  const isDeleted = payable.is_deleted
                   
                   return (
                     <tr key={payable.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -259,7 +266,7 @@ const Payables = () => {
                         ₱{payable.amount?.toLocaleString() || 0}
                       </td>
                       <td className="table-cell text-sm text-gray-500 dark:text-gray-400">
-                        {payable.dueDate ? new Date(payable.dueDate).toLocaleDateString() : 'N/A'}
+                        {payable.due_date ? new Date(payable.due_date).toLocaleDateString() : 'N/A'}
                         {payable.frequency && payable.frequency !== 'one-time' && (
                           <span className="text-xs ml-1 text-gray-400">({payable.frequency})</span>
                         )}
@@ -270,7 +277,7 @@ const Payables = () => {
                       <td className="table-cell text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleViewHistory(payable)}
+                            onClick={() => handleViewDetails(payable)}
                             className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
                             title="View Details"
                           >
@@ -339,13 +346,14 @@ const Payables = () => {
         payable={editingPayable}
       />
 
-      <TransactionHistoryModal
-        isOpen={isHistoryModalOpen}
+      <TransactionDetailsModal
+        isOpen={isDetailsModalOpen}
         onClose={() => {
-          setIsHistoryModalOpen(false)
+          setIsDetailsModalOpen(false)
           setSelectedPayable(null)
         }}
         transaction={selectedPayable}
+        type="payable"
       />
     </div>
   )
