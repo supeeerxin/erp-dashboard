@@ -47,6 +47,11 @@ export const ExpenseProvider = ({ children }) => {
     try {
       console.log('📝 Adding expense with data:', data)
 
+      if (!data.item || !data.amount) {
+        showNotification('Please enter item and amount', 'error')
+        return null
+      }
+
       const newExpense = {
         id: Date.now(),
         transaction_number: generateExpenseNumber(),
@@ -59,6 +64,8 @@ export const ExpenseProvider = ({ children }) => {
         updated_at: new Date().toISOString(),
         is_deleted: false
       }
+
+      console.log('📤 Inserting to Supabase:', newExpense)
 
       const { data: inserted, error } = await supabase
         .from('expenses')
