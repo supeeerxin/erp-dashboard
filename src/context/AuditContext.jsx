@@ -1,98 +1,216 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { useNotification } from './NotificationContext'
-import { useAudit } from './AuditContext'
+import { supabase } from '../services/supabase'
 
-const AuthContext = createContext()
+const AuditContext = createContext()
 
-export const useAuth = () => {
-  const context = useContext(AuthContext)
+export const useAudit = () => {
+  const context = useContext(AuditContext)
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
+    console.warn('useAudit used outside of AuditProvider, returning dummy functions')
+    return {
+      logs: [],
+      loading: false,
+      addLog: () => {},
+      getLogs: () => [],
+      clearLogs: () => {},
+      refreshLogs: () => {},
+      getCurrentUser: () => 'Admin'
+    }
   }
-  
   return context
 }
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user')
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch {
-        return null
-      }
-    }
-    return null
-  })
+export const AuditProvider = ({ children }) => {
+  const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
-  const { showNotification } = useNotification()
-  const { addLog } = useAudit()
 
-  const adminUsers = [
-    {
-      id: 1,
-      name: 'Elora',
-      username: 'elora',
-      password: '202128',
-      role: 'admin'
-    },
-    {
-      id: 2,
-      name: 'Xinia',
-      username: 'xinia',
-      password: '202128',
-      role: 'admin'
-    }
-  ]
-
-  useEffect(() => {
-    setLoading(false)
-  }, [])
-
-  const login = (username, password) => {
-    const foundUser = adminUsers.find(u => u.username === username && u.password === password)
-    
-    if (foundUser) {
-      const userData = {
-        id: foundUser.id,
-        name: foundUser.name,
-        username: foundUser.username,
-        role: foundUser.role
+  // Get current user from localStorage
+  const getCurrentUser = () => {
+    try {
+      const savedUser = localStorage.getItem('user')
+      if (savedUser) {
+        const user = JSON.parse(savedUser)
+        return user.name || user.username || 'Admin'
       }
-      localStorage.setItem('user', JSON.stringify(userData))
-      setUser(userData)
-      addLog('Login', 'Auth', `${foundUser.name} logged in`, foundUser.name)
-      showNotification(`Welcome back, ${foundUser.name}!`, 'success')
-      return { success: true, user: userData }
+    } catch (error) {
+      console.error('Error getting current user:', error)
     }
-    
-    addLog('Login Failed', 'Auth', `Failed login attempt for ${username}`, 'System')
-    return { success: false, message: 'Invalid username or password' }
+    return 'Admin'
   }
 
-  const logout = () => {
-    if (user) {
-      addLog('Logout', 'Auth', `${user.name} logged out`, user.name)
+  const loadLogs = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('timestamp', { ascending: false })
+
+      if (error) throw error
+      setLogs(data || [])
+    } catch (error) {
+      console.error('Error loading audit logs:', error)
+    } finally {
+      setLoading(false)
     }
-    localStorage.removeItem('user')
-    setUser(null)
-    showNotification('Logged out successfully', 'info')
+  }
+
+  useEffect(() => {
+    loadLogs()
+  }, [])
+
+  const addLog = async (action, module, details, user = null) => {
+    try {
+      // Get current user - either from parameter or from localStorage
+      const username = user || getCurrentUser()
+
+      // Check if user is logged in
+      if (username === 'Admin') {
+        // Try to get from localStorage again
+        try {
+          const savedUser = localStorage.getItem('user')
+          if (savedUser) {
+            const userData = JSON.parse(savedUser)
+            const finalUsername = userData.name || userData.username || 'Admin'
+            
+            const newLog = {
+              id: Date.now(),
+              timestamp: new Date().toISOString(),
+              username: finalUsername,
+              action: action,
+              module: module,
+              details: typeof details === 'object' ? JSON.stringify(details) : details,
+              created_at: new Date().toISOString()
+            }
+
+            console.log(`📝 [${finalUsername}] ${action} - ${module}: ${details}`)
+
+            const { data, error } = await supabase
+              .from('audit_logs')
+              .insert([newLog])
+              .select()
+
+            if (error) {
+              console.error('❌ Error saving audit log to Supabase:', error)
+              setLogs(prev => [newLog, ...prev].slice(0, 1000))
+              return newLog
+            }
+
+            console.log('✅ Audit log saved:', data)
+            setLogs(prev => [data[0], ...prev].slice(0, 1000))
+            return data[0]
+          }
+        } catch (error) {
+          console.error('Error getting user from localStorage:', error)
+        }
+      }
+
+      // Fallback: use provided user or 'Admin'
+      const finalUsername = user || getCurrentUser() || 'Admin'
+      
+      const newLog = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        username: finalUsername,
+        action: action,
+        module: module,
+        details: typeof details === 'object' ? JSON.stringify(details) : details,
+        created_at: new Date().toISOString()
+      }
+
+      console.log(`📝 [${finalUsername}] ${action} - ${module}: ${details}`)
+
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .insert([newLog])
+        .select()
+
+      if (error) {
+        console.error('❌ Error saving audit log to Supabase:', error)
+        setLogs(prev => [newLog, ...prev].slice(0, 1000))
+        return newLog
+      }
+
+      console.log('✅ Audit log saved:', data)
+      setLogs(prev => [data[0], ...prev].slice(0, 1000))
+      return data[0]
+    } catch (error) {
+      console.error('❌ Error in addLog:', error)
+      // Fallback: save to local state only
+      const finalUsername = user || getCurrentUser() || 'Admin'
+      const newLog = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        username: finalUsername,
+        action: action,
+        module: module,
+        details: typeof details === 'object' ? JSON.stringify(details) : details,
+        created_at: new Date().toISOString()
+      }
+      setLogs(prev => [newLog, ...prev].slice(0, 1000))
+      return newLog
+    }
+  }
+
+  const getLogs = (filters = {}) => {
+    let filtered = logs
+    if (filters.module) {
+      filtered = filtered.filter(log => log.module === filters.module)
+    }
+    if (filters.action) {
+      filtered = filtered.filter(log => log.action === filters.action)
+    }
+    if (filters.username) {
+      filtered = filtered.filter(log => log.username === filters.username)
+    }
+    if (filters.dateFrom) {
+      filtered = filtered.filter(log => new Date(log.timestamp) >= new Date(filters.dateFrom))
+    }
+    if (filters.dateTo) {
+      filtered = filtered.filter(log => new Date(log.timestamp) <= new Date(filters.dateTo))
+    }
+    return filtered
+  }
+
+  const clearLogs = async () => {
+    try {
+      // Delete all logs from Supabase
+      const { error } = await supabase
+        .from('audit_logs')
+        .delete()
+        .neq('id', 0)
+
+      if (error) {
+        console.error('Error clearing logs from Supabase:', error)
+        setLogs([])
+        return
+      }
+
+      setLogs([])
+      console.log('✅ All audit logs cleared')
+    } catch (error) {
+      console.error('Error clearing logs:', error)
+      setLogs([])
+    }
+  }
+
+  const refreshLogs = async () => {
+    await loadLogs()
   }
 
   const value = {
-    user,
+    logs,
     loading,
-    login,
-    logout,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    users: adminUsers
+    addLog,
+    getLogs,
+    clearLogs,
+    refreshLogs,
+    getCurrentUser
   }
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuditContext.Provider value={value}>
       {children}
-    </AuthContext.Provider>
+    </AuditContext.Provider>
   )
 }
