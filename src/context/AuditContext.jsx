@@ -5,7 +5,6 @@ const AuditContext = createContext()
 
 export const useAudit = () => {
   const context = useContext(AuditContext)
-  // Return dummy functions to prevent errors if no provider
   if (!context) {
     console.warn('useAudit used outside of AuditProvider, returning dummy functions')
     return {
@@ -23,7 +22,20 @@ export const AuditProvider = ({ children }) => {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Load logs from Supabase
+  // Get current user from localStorage
+  const getCurrentUser = () => {
+    try {
+      const savedUser = localStorage.getItem('user')
+      if (savedUser) {
+        const user = JSON.parse(savedUser)
+        return user.name || user.username || 'Admin'
+      }
+    } catch (error) {
+      console.error('Error getting current user:', error)
+    }
+    return 'Admin'
+  }
+
   const loadLogs = async () => {
     try {
       setLoading(true)
@@ -45,12 +57,10 @@ export const AuditProvider = ({ children }) => {
     loadLogs()
   }, [])
 
-  const addLog = async (action, module, details, user = 'Admin') => {
+  const addLog = async (action, module, details, user = null) => {
     try {
-      // Get current user from localStorage
-      const savedUser = localStorage.getItem('user')
-      const currentUser = savedUser ? JSON.parse(savedUser) : null
-      const username = currentUser?.name || user || 'Admin'
+      // Get current user - either from parameter or from localStorage
+      const username = user || getCurrentUser()
 
       const newLog = {
         id: Date.now(),
@@ -62,7 +72,7 @@ export const AuditProvider = ({ children }) => {
         created_at: new Date().toISOString()
       }
 
-      console.log('📝 Adding audit log:', newLog)
+      console.log(`📝 [${username}] ${action} - ${module}: ${details}`)
 
       const { data, error } = await supabase
         .from('audit_logs')
@@ -71,17 +81,15 @@ export const AuditProvider = ({ children }) => {
 
       if (error) {
         console.error('❌ Error saving audit log to Supabase:', error)
-        // Still add to local state even if Supabase fails
         setLogs(prev => [newLog, ...prev].slice(0, 1000))
         return newLog
       }
 
-      console.log('✅ Audit log saved to Supabase:', data)
+      console.log('✅ Audit log saved:', data)
       setLogs(prev => [data[0], ...prev].slice(0, 1000))
       return data[0]
     } catch (error) {
       console.error('❌ Error in addLog:', error)
-      // Fallback: save to local state only
       const newLog = {
         id: Date.now(),
         timestamp: new Date().toISOString(),
@@ -104,6 +112,9 @@ export const AuditProvider = ({ children }) => {
     if (filters.action) {
       filtered = filtered.filter(log => log.action === filters.action)
     }
+    if (filters.username) {
+      filtered = filtered.filter(log => log.username === filters.username)
+    }
     if (filters.dateFrom) {
       filtered = filtered.filter(log => new Date(log.timestamp) >= new Date(filters.dateFrom))
     }
@@ -115,15 +126,13 @@ export const AuditProvider = ({ children }) => {
 
   const clearLogs = async () => {
     try {
-      // Delete all logs from Supabase
       const { error } = await supabase
         .from('audit_logs')
         .delete()
-        .neq('id', 0) // Delete all rows
+        .neq('id', 0)
 
       if (error) {
         console.error('Error clearing logs from Supabase:', error)
-        // Still clear local state
         setLogs([])
         return
       }
@@ -146,7 +155,8 @@ export const AuditProvider = ({ children }) => {
     addLog,
     getLogs,
     clearLogs,
-    refreshLogs
+    refreshLogs,
+    getCurrentUser
   }
 
   return (
