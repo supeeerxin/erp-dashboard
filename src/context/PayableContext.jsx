@@ -45,7 +45,7 @@ export const PayableProvider = ({ children }) => {
 
   // Check for overdue payables
   useEffect(() => {
-    if (!loading) {
+    if (!loading && payables.length > 0) {
       const updatedPayables = payables.map(p => {
         if (p.status !== 'paid' && p.due_date) {
           const dueDate = parseISO(p.due_date)
@@ -65,6 +65,11 @@ export const PayableProvider = ({ children }) => {
     try {
       console.log('📝 Adding payable with data:', data)
 
+      if (!data.name || !data.amount) {
+        showNotification('Please enter name and amount', 'error')
+        return null
+      }
+
       const newPayable = {
         id: Date.now(),
         name: data.name || '',
@@ -79,6 +84,8 @@ export const PayableProvider = ({ children }) => {
         updated_at: new Date().toISOString(),
         is_deleted: false
       }
+
+      console.log('📤 Inserting to Supabase:', newPayable)
 
       const { data: inserted, error } = await supabase
         .from('payables')
