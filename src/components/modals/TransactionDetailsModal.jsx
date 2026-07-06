@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, Calendar, Clock, User, Package, DollarSign, CreditCard, FileText, CheckCircle, AlertCircle, Car as CarIcon } from 'lucide-react'
+import { X, Calendar, Clock, User, Package, DollarSign, CreditCard, FileText, CheckCircle, AlertCircle, Car as CarIcon, TrendingUp, TrendingDown } from 'lucide-react'
 import { useCustomers } from '../../context/CustomerContext'
 
 const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
@@ -15,6 +15,8 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
         return <span className="badge badge-success"><CheckCircle className="w-3 h-3 mr-1" /> Completed</span>
       case 'overdue':
         return <span className="badge badge-danger"><AlertCircle className="w-3 h-3 mr-1" /> Overdue</span>
+      case 'paid':
+        return <span className="badge badge-success"><CheckCircle className="w-3 h-3 mr-1" /> Paid</span>
       case 'active':
         return <span className="badge badge-warning">Active</span>
       default:
@@ -481,6 +483,177 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
     )
   }
 
+  // ==================== PAYABLE DETAILS ====================
+  const renderPayableDetails = () => {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {transaction.name || 'N/A'}
+            </p>
+          </div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+            <div>{getStatusBadge(transaction.status)}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Category</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {transaction.category || 'Other'}
+            </p>
+          </div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Due Date</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {formatDate(transaction.due_date)}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              {formatCurrency(transaction.amount)}
+            </p>
+          </div>
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Frequency</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {transaction.frequency || 'Monthly'}
+            </p>
+          </div>
+        </div>
+
+        {transaction.description && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Description</p>
+            <p className="text-sm text-gray-900 dark:text-white mt-1">{transaction.description}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ==================== INCOME DETAILS ====================
+  const renderIncomeDetails = () => {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Transaction #</p>
+            <p className="font-mono font-medium text-gray-900 dark:text-white">
+              {transaction.transaction_number || 'N/A'}
+            </p>
+          </div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+            <div>{getStatusBadge(transaction.is_deleted ? 'deleted' : 'active')}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Source</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {transaction.source || 'N/A'}
+            </p>
+          </div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Category</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {transaction.category || 'Other'}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              {formatCurrency(transaction.amount)}
+            </p>
+          </div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {formatDate(transaction.date)}
+            </p>
+          </div>
+        </div>
+
+        {transaction.description && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Description</p>
+            <p className="text-sm text-gray-900 dark:text-white mt-1">{transaction.description}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ==================== EXPENSE DETAILS ====================
+  const renderExpenseDetails = () => {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Transaction #</p>
+            <p className="font-mono font-medium text-gray-900 dark:text-white">
+              {transaction.transaction_number || 'N/A'}
+            </p>
+          </div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+            <div>{getStatusBadge(transaction.is_deleted ? 'deleted' : 'active')}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Item</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {transaction.item || 'N/A'}
+            </p>
+          </div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Category</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {transaction.category || 'Other'}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+            <p className="text-lg font-bold text-red-600 dark:text-red-400">
+              {formatCurrency(transaction.amount)}
+            </p>
+          </div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              {formatDate(transaction.date)}
+            </p>
+          </div>
+        </div>
+
+        {transaction.description && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Description</p>
+            <p className="text-sm text-gray-900 dark:text-white mt-1">{transaction.description}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // ==================== RENDER BASED ON TYPE ====================
   const renderDetails = () => {
     switch (type) {
@@ -492,6 +665,12 @@ const TransactionDetailsModal = ({ isOpen, onClose, transaction, type }) => {
         return renderBreadOrderDetails()
       case 'rental':
         return renderRentalDetails()
+      case 'payable':
+        return renderPayableDetails()
+      case 'income':
+        return renderIncomeDetails()
+      case 'expense':
+        return renderExpenseDetails()
       default:
         return renderRiceCreditDetails()
     }
