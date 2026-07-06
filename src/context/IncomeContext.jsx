@@ -47,6 +47,12 @@ export const IncomeProvider = ({ children }) => {
     try {
       console.log('📝 Adding income with data:', data)
 
+      // Validate required fields
+      if (!data.source || !data.amount) {
+        showNotification('Please enter source and amount', 'error')
+        return null
+      }
+
       const newIncome = {
         id: Date.now(),
         transaction_number: generateIncomeNumber(),
@@ -59,6 +65,8 @@ export const IncomeProvider = ({ children }) => {
         updated_at: new Date().toISOString(),
         is_deleted: false
       }
+
+      console.log('📤 Inserting to Supabase:', newIncome)
 
       const { data: inserted, error } = await supabase
         .from('income')
