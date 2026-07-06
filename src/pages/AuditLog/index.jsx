@@ -26,8 +26,15 @@ const AuditLog = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterModule, setFilterModule] = useState('all')
   const [filterAction, setFilterAction] = useState('all')
+  const [filterUser, setFilterUser] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+
+  // Get unique users for filter
+  const users = useMemo(() => {
+    const unique = new Set(logs.map(log => log.username))
+    return ['all', ...Array.from(unique)]
+  }, [logs])
 
   // Get unique modules and actions for filters
   const modules = useMemo(() => {
@@ -48,7 +55,7 @@ const AuditLog = () => {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(log => 
         log.details?.toLowerCase().includes(query) ||
-        log.user?.toLowerCase().includes(query) ||
+        log.username?.toLowerCase().includes(query) ||
         log.module?.toLowerCase().includes(query) ||
         log.action?.toLowerCase().includes(query)
       )
@@ -62,6 +69,10 @@ const AuditLog = () => {
       filtered = filtered.filter(log => log.action === filterAction)
     }
 
+    if (filterUser !== 'all') {
+      filtered = filtered.filter(log => log.username === filterUser)
+    }
+
     if (dateFrom) {
       filtered = filtered.filter(log => new Date(log.timestamp) >= new Date(dateFrom))
     }
@@ -71,7 +82,7 @@ const AuditLog = () => {
     }
 
     return filtered
-  }, [logs, searchQuery, filterModule, filterAction, dateFrom, dateTo])
+  }, [logs, searchQuery, filterModule, filterAction, filterUser, dateFrom, dateTo])
 
   const getModuleIcon = (module) => {
     const icons = {
@@ -84,7 +95,8 @@ const AuditLog = () => {
       'Payable': CreditCard,
       'Vehicle': Car,
       'Rental': Calendar,
-      'Settings': FileText
+      'Settings': FileText,
+      'Auth': Users
     }
     return icons[module] || FileText
   }
@@ -100,7 +112,8 @@ const AuditLog = () => {
       'Payable': 'text-orange-500',
       'Vehicle': 'text-cyan-500',
       'Rental': 'text-pink-500',
-      'Settings': 'text-gray-500'
+      'Settings': 'text-gray-500',
+      'Auth': 'text-gray-500'
     }
     return colors[module] || 'text-gray-500'
   }
@@ -151,7 +164,7 @@ const AuditLog = () => {
 
     const data = filteredLogs.map(log => ({
       timestamp: log.timestamp,
-      user: log.user,
+      user: log.username,
       module: log.module,
       action: log.action,
       details: log.details
@@ -261,6 +274,16 @@ const AuditLog = () => {
               <option key={action} value={action}>{action}</option>
             ))}
           </select>
+          <select
+            value={filterUser}
+            onChange={(e) => setFilterUser(e.target.value)}
+            className="input-field lg:w-40"
+          >
+            <option value="all">All Users</option>
+            {users.filter(u => u !== 'all').map(user => (
+              <option key={user} value={user}>{user}</option>
+            ))}
+          </select>
           <div className="flex gap-2">
             <input
               type="date"
@@ -321,7 +344,9 @@ const AuditLog = () => {
                       <td className="table-cell">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium text-gray-900 dark:text-white">{log.user || 'Admin'}</span>
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {log.username || 'Admin'}
+                          </span>
                         </div>
                       </td>
                       <td className="table-cell">
